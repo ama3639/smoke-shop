@@ -1,0 +1,252 @@
+# docs/MAINTENANCE.md — سیاست نگهداری و کنترل انتشار
+
+> **نسخه:** 0.1.0  
+> **تاریخ:** 2026-10-08  
+> **به‌روزرسانی شود:** در هر نسخه برای همسانی نسخه؛ و با تغییر فرایند نگهداری
+
+---
+
+## ۱. سیاست نسخه‌بندی
+
+### قرارداد SemVer
+
+```
+MAJOR.MINOR.PATCH
+
+MAJOR: تغییر Breaking در API، ساختار DB یا رفتار عامل‌ها
+MINOR: قابلیت جدید سازگار با نسخه قبل
+PATCH: رفع باگ، بهبود عملکرد، به‌روزرسانی مستندات
+```
+
+**نسخه جاری:** `0.1.0` (Pre-Alpha — پیش از MVP)
+
+### چرخه انتشار
+
+| مرحله | شرط انتشار |
+|---|---|
+| `0.x.x` Pre-Alpha | مستندات، معماری، فاز صفر |
+| `0.1.x` Alpha | MVP با اقلام مجاز، Compatibility Finder پایه |
+| `0.2.x` Beta | Health AI Agent، کامل‌شدن گاردریل‌ها |
+| `1.0.0` Production | تأیید امنیتی، حقوقی و بار واقعی |
+
+---
+
+## ۲. چرخه به‌روزرسانی مستندات
+
+| سند | رویداد به‌روزرسانی |
+|---|---|
+| `VERSION` | هر انتشار نسخه |
+| `CHANGELOG.md` | هر انتشار نسخه |
+| `README.md` | تغییر رفتار، نصب یا نسخه |
+| `PROJECT_CONTEXT.md` | هر نسخه + تغییر دامنه/موارد باز |
+| `PROJECT_DECISIONS.md` | تصمیم جدید تأییدشده |
+| `AGENTS.md` | تغییر سیاست کاری یا معماری کلان |
+| `AI/EXECUTION_GUIDE.md` | تغییر فرایند، دامنه یا دستور اجرا |
+| `SKILLS/SKILL.md` | تغییر قراردادهای فنی یا جریان توسعه |
+| `docs/README.md` | افزودن یا حذف هر سند |
+| `docs/MAINTENANCE.md` | هر نسخه برای همسانی |
+
+---
+
+## ۳. فرایند انتشار (Release Process)
+
+### ۳.۱ Pre-Release Checklist
+
+```
+□ تمام تست‌ها در Staging پاس شده‌اند
+□ Core Web Vitals در داده واقعی بررسی شده
+□ بررسی امنیتی (Dependency scan, Penetration test)
+□ تأیید ناظر حقوقی برای تغییرات مرتبط با SKU/Cart
+□ Backup از Production تهیه شده و بازیابی تست شده
+□ Feature Flagها بررسی شده‌اند
+□ مستندات به‌روز شده‌اند
+□ CHANGELOG تکمیل شده
+□ VERSION فایل به‌روز شده
+```
+
+### ۳.۲ مراحل انتشار
+
+```
+1. تأیید Staging توسط QA و ناظر حقوقی
+2. اجرای Migration در Staging → بررسی
+3. Backup کامل Production
+4. Deploy به Production (زمان کم‌ترافیک)
+5. Smoke Test: صفحه اصلی، جستجو، Compatibility Finder
+6. بررسی Logs و Error Rate
+7. اعلام انتشار در تیم
+8. به‌روزرسانی مستندات
+```
+
+### ۳.۳ Rollback Plan
+
+```
+در صورت خرابی Critical:
+1. Feature Flag خاموش (Kill-Switch) — فوری
+2. Revert Migration (اگر لازم)
+3. Restore از Backup (اگر داده خراب شده)
+4. ثبت رویداد در Audit Log
+5. Post-mortem در ۴۸ ساعت
+```
+
+---
+
+## ۴. سیاست پشتیبان‌گیری
+
+### ۴.۱ جداول حیاتی
+
+| جدول | فرکانس | نگهداری | رمزنگاری |
+|---|---|---|---|
+| `catalog_products` | روزانه | ۳۰ روز | AES-256 |
+| `catalog_compatibility_rules` | روزانه | ۳۰ روز | AES-256 |
+| `legal_classifications` | روزانه | ۹۰ روز | AES-256 |
+| `inventory_stock_ledger` | ساعتی | ۷ روز | AES-256 |
+| `orders_*` | روزانه | ۷ سال* | AES-256 |
+| `audit_logs` | روزانه | ۷ سال* | AES-256 |
+| `health_sessions` | روزانه | مطابق Privacy Policy | AES-256 |
+
+*مطابق الزامات قانون مالیاتی ایران
+
+### ۴.۲ قوانین پشتیبان
+
+- نسخه روزانه رمزنگاری‌شده در سرور اصلی
+- نسخه هفتگی در محل خارج از سرور (Off-site)
+- تست بازیابی هر ماه یک بار (در محیط Test جداگانه)
+- نتیجه تست بازیابی در `docs/ops/BACKUP_TESTS.md` ثبت شود
+
+---
+
+## ۵. مانیتورینگ و SLA
+
+### ۵.۱ شاخص‌های حیاتی
+
+```
+Uptime Target: 99.5% (ماهانه)
+API Response P95: < 500ms
+Page Load LCP: < 2.5s
+Error Rate: < 0.1%
+```
+
+### ۵.۲ Alertها
+
+| رویداد | آستانه | اقدام |
+|---|---|---|
+| Error Rate | > 1% در ۵ دقیقه | هشدار فوری به تیم فنی |
+| API Latency P95 | > 2 ثانیه | بررسی RAG pipeline |
+| AI Guardrail Trigger | > 10/ساعت | بررسی لاگ امنیتی |
+| Stock Discrepancy | > 5 واحد | هشدار به انباردار |
+| Failed Payment | > 3 در ۱۰ دقیقه | بررسی درگاه |
+| FTND Referral Needed | FTND > 6 | ارجاع ۴۰۳۰ خودکار |
+
+### ۵.۳ Stack مانیتورینگ
+
+```
+Prometheus + Grafana → متریک‌های سیستم و برنامه
+Loki → لاگ‌های ساختاریافته
+Sentry → خطاهای Runtime
+RUM (web-vitals) → Core Web Vitals واقعی
+```
+
+---
+
+## ۶. نگهداری داده و حریم خصوصی
+
+### ۶.۱ دوره نگهداری
+
+| نوع داده | دوره | اقدام پس از انقضا |
+|---|---|---|
+| تاریخچه مکالمات Health | ۶ ماه | حذف خودکار |
+| داده‌های ناشناس‌شده | ۲ سال | آرشیو |
+| سوابق سفارش | ۷ سال | آرشیو رمزنگاری |
+| Audit Logs | ۷ سال | آرشیو رمزنگاری |
+| Session توکن | ۲۴ ساعت | حذف خودکار |
+| Age Verification Flag | مدت Session | حذف با بستن Session |
+
+### ۶.۲ Anonymization
+
+```python
+# تاریخچه مکالمات Health پس از ۶ ماه:
+session.user_id = None
+session.ip_address = None
+session.user_agent = None
+session.anonymized_at = timezone.now()
+# محتوای مکالمه برای تحقیق آماری نگهداری می‌شود
+```
+
+---
+
+## ۷. به‌روزرسانی پایگاه دانش AI
+
+### ۷.۱ کاتالوگ KB
+
+| رویداد | اقدام |
+|---|---|
+| SKU جدید تأیید‌شده | Chunking + Embedding + Index |
+| تغییر مشخصات فیزیکی | Re-chunk + Re-embed + Update Index |
+| تغییر قانون سازگاری | Update CompatibilityRule + Re-rank |
+| SKU بلوک‌شده | حذف از Index |
+
+### ۷.۲ Health KB
+
+| رویداد | اقدام |
+|---|---|
+| راهنمای بالینی جدید WHO | Review + Chunk + Embed + Index |
+| به‌روزرسانی پروتکل 5As/OARS | Re-chunk سناریوها + تست |
+| تغییر شماره ۴۰۳۰ | به‌روزرسانی Guardrail + Prompt + مستندات |
+
+### ۷.۳ ارزیابی کیفیت RAG
+
+```
+هر ماه:
+- نرخ کشف اسناد (Recall@K)
+- شاخص Hallucination (دستی + خودکار)
+- دقت Cross-Encoder Reranker
+- نرخ RRF Score توزیع
+```
+
+---
+
+## ۸. کنترل وابستگی‌ها
+
+```bash
+# هفتگی
+pip-audit                    # بررسی آسیب‌پذیری‌های Python
+npm audit                    # بررسی آسیب‌پذیری‌های Node.js
+
+# ماهانه
+pip list --outdated          # به‌روزرسانی Dependency
+npm outdated
+
+# قبل از هر انتشار
+safety check
+trivy image smokeshop-backend:latest
+```
+
+---
+
+## ۹. فرایند بررسی حقوقی (Quarterly)
+
+هر سه ماه یک بار ناظر حقوقی باید موارد زیر را بررسی کند:
+
+```
+□ وضعیت قانونی هر گروه کالا تغییر نکرده باشد
+□ ممنوعیت‌های جدید شاپرک/ستاد دخانیات
+□ تغییر رویه قضایی مرتبط
+□ SKUهای در وضعیت REVIEW_REQUIRED تکلیف‌شان مشخص شود
+□ Feature Flagهای فعال مجوز داشته باشند
+□ مستندات حقوقی تأیید‌شده منقضی نشده باشند
+```
+
+---
+
+## ۱۰. تیم و مسئولیت‌های نگهداری
+
+| مسئولیت | نقش |
+|---|---|
+| Deploy و Infra | مدیر سامانه |
+| تست امنیتی | مدیر امنیت |
+| بررسی حقوقی | ناظر ارشد حقوقی |
+| کیفیت RAG | مهندس ML |
+| Backup و بازیابی | مدیر سامانه |
+| به‌روزرسانی KB | مهندس ML + ناظر حقوقی (Health KB) |
+| مانیتورینگ | مدیر سامانه + معمار داده |
+| مستندات | تمام تیم (مسئول مستقیم: Tech Lead) |

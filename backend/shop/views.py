@@ -61,7 +61,10 @@ def session(request):
 
 @require_http_methods(['GET'])
 def catalog(request):
-    return ok({'categories': list(Category.objects.values('title', 'slug')),
+    categories = Category.objects.all()
+    if request.GET.get('type'):
+        categories = categories.filter(product__product_type=request.GET['type']).distinct()
+    return ok({'categories': list(categories.values('title', 'slug')),
                'devices': list(Device.objects.values('title', 'slug')),
                'checkout_enabled': FeatureFlag.enabled('order_requests')})
 
@@ -74,6 +77,14 @@ def branches(request):
 @require_http_methods(['GET'])
 def products(request):
     qs = visible_products().order_by('pk')
+    if request.GET.get('type'):
+        qs = qs.filter(product_type=request.GET['type'])
+    if request.GET.get('brand'):
+        qs = qs.filter(brand=request.GET['brand'][:100])
+    if request.GET.get('mode') == 'wholesale':
+        qs = qs.filter(wholesale_available=True)
+    elif request.GET.get('mode') == 'retail':
+        qs = qs.filter(retail_available=True)
     if request.GET.get('q'):
         qs = qs.filter(search_text__contains=normalize(request.GET['q'][:100]))
     if request.GET.get('category'):

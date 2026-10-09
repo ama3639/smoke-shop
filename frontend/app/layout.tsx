@@ -8,11 +8,11 @@ import { Footer, Header } from "@/components/chrome";
 
 export const metadata: Metadata = {
   title: {
-    default: "اسموک‌شاپ | انتخاب دقیق اکسسوری و قطعات",
+    default: "اسموک‌شاپ | کاتالوگ سیگار وینستون، عمده و تکی",
     template: "%s | اسموک‌شاپ",
   },
   description:
-    "کاتالوگ تخصصی اکسسوری و قطعات با مشخصات روشن، انتخاب‌گر سازگاری و وضعیت عرضه شفاف.",
+    "معرفی مدل‌های سیگار وینستون، مشخصات بسته و باکس، اطلاعات عرضه حضوری تکی و همکاری عمده.",
 };
 
 export default function RootLayout({

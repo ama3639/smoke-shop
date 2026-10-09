@@ -5,8 +5,8 @@ export function Header() {
   return (
     <>
       <div className="announcement">
-        انتخاب آگاهانه، بر پایه مشخصات و سازگاری{" "}
-        <span>کاتالوگ تخصصی اکسسوری</span>
+        اسموک‌شاپ / کاتالوگ سیگار{" "}
+        <span>اطلاعات عرضه حضوری عمده و تکی · ۱۸+</span>
       </div>
       <header className="header">
         <div className="container header-inner">
@@ -15,54 +15,54 @@ export function Header() {
               <ScanLine size={23} strokeWidth={1.5} />
             </span>
             <span>
-              اسموک‌شاپ<small>SMOKESHOP / ACCESSORIES</small>
+              اسموک‌شاپ<small>SMOKESHOP / TOBACCO CATALOG</small>
             </span>
           </Link>
           <nav aria-label="منوی اصلی">
-            <Link href="/#catalog">کاتالوگ</Link>
-            <Link href="/#finder">سازگاری قطعات</Link>
-            <Link href="/guide">راهنمای نگهداری</Link>
+            <Link href="/#catalog">کاتالوگ وینستون</Link>
+            <Link href="/#wholesale">همکاری عمده</Link>
+            <Link href="/guide">واحدهای عرضه</Link>
             <Link href="/branches">شعب حضوری</Link>
           </nav>
           <Link href="/cart" className="cart-link">
             <ShoppingBag size={19} />
-            <span>سبد خرید</span>
+            <span>سبد اقلام مجاز</span>
           </Link>
         </div>
       </header>
     </>
   );
 }
-
 export function Footer() {
   return (
     <footer className="footer">
       <div className="container footer-top">
         <div>
           <Link className="footer-brand" href="/">
-            اسموک‌شاپ<span>انتخاب دقیق. نگهداری بهتر.</span>
+            اسموک‌شاپ<span>کاتالوگ سیگار / عمده و تکی</span>
           </Link>
           <p>
-            کاتالوگ تخصصی قطعات و اکسسوری، با مشخصات روشن و وضعیت عرضه شفاف.
+            معرفی مدل‌ها، بسته‌بندی و اطلاعات همکاری با فروشگاه‌ها و مراکز پخش.
+            نخستین برند: وینستون.
           </p>
         </div>
         <div>
           <h3>مسیرهای دسترسی</h3>
           <Link href="/#catalog">
-            کاتالوگ قطعات <ArrowUpLeft size={15} />
+            کاتالوگ وینستون <ArrowUpLeft size={15} />
           </Link>
-          <Link href="/guide">
-            راهنمای نگهداری <ArrowUpLeft size={15} />
+          <Link href="/#wholesale">
+            همکاری عمده <ArrowUpLeft size={15} />
           </Link>
           <Link href="/branches">
-            اطلاعات شعب <ArrowUpLeft size={15} />
+            شعب و اطلاعات مراجعه <ArrowUpLeft size={15} />
           </Link>
         </div>
         <div>
-          <h3>شفافیت در عرضه</h3>
+          <h3>اطلاعات عرضه</h3>
           <p>
-            خرید آنلاین فقط برای کالاهای دارای تأیید حقوقی و در دسته‌های فعال
-            امکان‌پذیر است.
+            سیگار در این سایت امکان خرید اینترنتی ندارد. اطلاعات مراجعه حضوری
+            فقط برای شعب ثبت‌شده نمایش داده می‌شود.
           </p>
           <Link href="/policy">
             شرایط عرضه و حریم خصوصی <ArrowUpLeft size={15} />
@@ -70,8 +70,8 @@ export function Footer() {
         </div>
       </div>
       <div className="container footer-bottom">
-        <span>اسموک‌شاپ · زیرساخت انتخاب آگاهانه</span>
-        <span dir="ltr">EST. 2026 — BUILT WITH CARE</span>
+        <span>مصرف دخانیات به سلامت آسیب می‌رساند.</span>
+        <span dir="ltr">SMOKESHOP / TOBACCO CATALOG — 2026</span>
       </div>
     </footer>
   );

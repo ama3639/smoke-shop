@@ -9,7 +9,7 @@ class ShopError(Exception):
 
 
 def can_purchase(product):
-    return (product.active and product.legal_status == Product.LegalStatus.APPROVED_ONLINE
+    return (product.active and product.product_type != 'cigarette' and product.legal_status == Product.LegalStatus.APPROVED_ONLINE
             and bool(product.legal_reference.strip()) and product.category.online_enabled
             and FeatureFlag.enabled('cart'))
 

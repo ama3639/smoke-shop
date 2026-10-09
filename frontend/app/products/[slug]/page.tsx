@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Product, serverApi } from "@/lib/api";
+import { Product, number, serverApi } from "@/lib/api";
 import ProductImage from "@/components/product-image";
 import Purchase from "@/components/purchase";
 
@@ -52,14 +52,43 @@ export default async function ProductPage({
           <h1>{p.title}</h1>
           <p>{p.description}</p>
           <dl className="spec-table">
-            <div>
-              <dt>جنس</dt>
-              <dd>{p.material || "ثبت نشده"}</dd>
-            </div>
-            <div>
-              <dt>ابعاد</dt>
-              <dd>{p.dimensions || "ثبت نشده"}</dd>
-            </div>
+            {p.product_type === "cigarette" ? (
+              <>
+                <div>
+                  <dt>برند</dt>
+                  <dd>{p.brand || "ثبت نشده"}</dd>
+                </div>
+                <div>
+                  <dt>واحد بسته</dt>
+                  <dd>{number(p.sticks_per_pack)} نخ</dd>
+                </div>
+                <div>
+                  <dt>واحد باکس</dt>
+                  <dd>{number(p.packs_per_carton)} بسته</dd>
+                </div>
+                <div>
+                  <dt>مسیر عرضه حضوری</dt>
+                  <dd>
+                    {p.retail_available && p.wholesale_available
+                      ? "تکی و عمده"
+                      : p.wholesale_available
+                        ? "عمده"
+                        : "تکی"}
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <dt>جنس</dt>
+                  <dd>{p.material || "ثبت نشده"}</dd>
+                </div>
+                <div>
+                  <dt>ابعاد</dt>
+                  <dd>{p.dimensions || "ثبت نشده"}</dd>
+                </div>
+              </>
+            )}
             <div>
               <dt>موجودی</dt>
               <dd>{p.stock > 0 ? "موجود" : "بدون موجودی ثبت‌شده"}</dd>
@@ -68,35 +97,37 @@ export default async function ProductPage({
           <Purchase product={p} />
         </div>
       </div>
-      <section className="compatibility-detail">
-        <div className="eyebrow">قبل از انتخاب بررسی کنید</div>
-        <h2>سازگاری قطعه</h2>
-        {p.compatibility.length ? (
-          p.compatibility.map((r, i) => (
-            <div className="compatibility-row" key={i}>
-              <strong>{r.model}</strong>
-              <span>
-                {r.incompatible
-                  ? "ناسازگار"
-                  : r.confidence === "CONFIRMED"
-                    ? "تأییدشده"
-                    : r.confidence === "PROBABLE"
-                      ? "محتمل"
-                      : "آزمایشی"}
-              </span>
-              <p>
-                {r.source} · بررسی:{" "}
-                {new Date(r.verified).toLocaleDateString("fa-IR")}
-              </p>
-            </div>
-          ))
-        ) : (
-          <p>
-            برای این کالا هنوز رابطه سازگاری ثبت نشده است. تطابق ابعاد و مدل را
-            پیش از انتخاب بررسی کنید.
-          </p>
-        )}
-      </section>
+      {p.product_type !== "cigarette" && (
+        <section className="compatibility-detail">
+          <div className="eyebrow">قبل از انتخاب بررسی کنید</div>
+          <h2>سازگاری قطعه</h2>
+          {p.compatibility.length ? (
+            p.compatibility.map((r, i) => (
+              <div className="compatibility-row" key={i}>
+                <strong>{r.model}</strong>
+                <span>
+                  {r.incompatible
+                    ? "ناسازگار"
+                    : r.confidence === "CONFIRMED"
+                      ? "تأییدشده"
+                      : r.confidence === "PROBABLE"
+                        ? "محتمل"
+                        : "آزمایشی"}
+                </span>
+                <p>
+                  {r.source} · بررسی:{" "}
+                  {new Date(r.verified).toLocaleDateString("fa-IR")}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p>
+              برای این کالا هنوز رابطه سازگاری ثبت نشده است. تطابق ابعاد و مدل
+              را پیش از انتخاب بررسی کنید.
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

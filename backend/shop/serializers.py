@@ -13,7 +13,8 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'title', 'slug', 'sku', 'category', 'category_title', 'description', 'material',
-                  'dimensions', 'illustration', 'image', 'price', 'stock', 'legal_status', 'purchasable', 'compatibility', 'updated_at']
+                  'dimensions', 'illustration', 'image', 'price', 'stock', 'legal_status', 'purchasable', 'compatibility', 'updated_at',
+                  'product_type', 'brand', 'sticks_per_pack', 'packs_per_carton', 'retail_available', 'wholesale_available']
 
     def get_purchasable(self, obj):
         return can_purchase(obj) and obj.price > 0

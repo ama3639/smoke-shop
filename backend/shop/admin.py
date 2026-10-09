@@ -29,9 +29,9 @@ class LegalAdmin(AuditedAdmin):
 @admin.register(Product)
 class ProductAdmin(LegalAdmin):
     legal_fields = ('legal_status', 'legal_reference')
-    list_display = ('title', 'sku', 'category', 'legal_status', 'stock', 'active')
-    list_filter = ('legal_status', 'category', 'active')
-    search_fields = ('title', 'sku')
+    list_display = ('title', 'sku', 'brand', 'product_type', 'legal_status', 'stock', 'active')
+    list_filter = ('product_type', 'legal_status', 'category', 'retail_available', 'wholesale_available', 'active')
+    search_fields = ('title', 'sku', 'brand')
     prepopulated_fields = {'slug': ('title',)}
 
     def save_model(self, request, obj, form, change):

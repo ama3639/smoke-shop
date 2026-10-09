@@ -3,12 +3,10 @@ import { test, expect } from "@playwright/test";
 test("RTL, local font, catalog and normalized search", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "هر قطعه",
-  );
-  await expect(page.locator(".product-card")).toHaveCount(7);
-  await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كيف");
-  await expect(page.locator(".product-card")).toHaveCount(3);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("سیگار");
+  await expect(page.locator(".product-card")).toHaveCount(6);
+  await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كامپكت");
+  await expect(page.locator(".product-card")).toHaveCount(2);
   await page.evaluate(() => document.fonts.ready);
   expect(
     await page.evaluate(() => document.fonts.check("14px Vazirmatn")),
@@ -20,26 +18,27 @@ test("RTL, local font, catalog and normalized search", async ({ page }) => {
   ).toBeTruthy();
 });
 
-test("category and compatibility filters show relevant products", async ({
+test("category, brand and retail/wholesale filters show relevant models", async ({
   page,
 }) => {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "قطعات و اتصالات", exact: true })
-    .click();
-  await expect(page.locator(".product-card")).toHaveCount(1);
-  await page.getByRole("button", { name: "همه کالاها", exact: true }).click();
-  await page.getByLabel("مدل وسیله یا اتصال").selectOption("sample-9mm");
-  await expect(page.locator(".product-card")).toHaveCount(1);
-  await expect(page.locator(".product-card")).toContainText("واشر اتصال");
+  await page.getByRole("button", { name: "اسلیم", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "همه نوع‌ها", exact: true }).click();
+  await page.getByRole("button", { name: "عمده / باکس", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(5);
+  await page.getByRole("button", { name: "تکی / بسته", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(5);
+  await page.getByLabel("فیلتر برند").selectOption("Winston");
+  await expect(page.locator(".product-card")).toHaveCount(5);
 });
 
 test("catalog-only product cannot be purchased and missing product returns 404", async ({
   page,
 }) => {
-  await page.goto("/products/travel-case");
+  await page.goto("/products/winston-red");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "کیف نگهداری ابزار",
+    "وینستون قرمز",
   );
   await expect(page.getByRole("button", { name: "افزودن به سبد" })).toHaveCount(
     0,
@@ -101,4 +100,58 @@ test("empty cart and branches are honest and keyboard navigation works", async (
     path: `test-results/home-${test.info().project.name}.png`,
     fullPage: true,
   });
+});
+
+test("scroll changes the 3D scene and motion can be paused", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const pack = page.locator(".scene-pack-main");
+  const initial = await pack.evaluate((el) => getComputedStyle(el).transform);
+  await page.evaluate(() => scrollTo(0, Math.round(innerHeight * 0.65)));
+  await expect
+    .poll(() =>
+      page
+        .locator(".cigarette-hero")
+        .evaluate((el) =>
+          Number(getComputedStyle(el).getPropertyValue("--scene-progress")),
+        ),
+    )
+    .toBeGreaterThan(0.1);
+  const moved = await pack.evaluate((el) => getComputedStyle(el).transform);
+  expect(moved).not.toBe(initial);
+  expect(moved).toContain("matrix3d");
+  await page.getByRole("button", { name: "توقف حرکت" }).click();
+  await expect(page.locator(".cigarette-hero")).toHaveClass(/scene-static/);
+  await expect
+    .poll(() =>
+      page
+        .locator(".cigarette-hero")
+        .evaluate((el) =>
+          Number(getComputedStyle(el).getPropertyValue("--scene-progress")),
+        ),
+    )
+    .toBe(0);
+});
+
+test("reduced motion preserves a static readable scene", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(page.locator(".cigarette-hero")).toHaveClass(/scene-static/);
+  expect(
+    await page
+      .locator(".hero-sticky")
+      .evaluate((el) => getComputedStyle(el).position),
+  ).toBe("relative");
+  await expect(
+    page.getByRole("button", { name: "حرکت متوقف است" }),
+  ).toBeDisabled();
+  await page.evaluate(() => scrollTo(0, 400));
+  expect(
+    await page
+      .locator(".cigarette-hero")
+      .evaluate((el) =>
+        Number(getComputedStyle(el).getPropertyValue("--scene-progress")),
+      ),
+  ).toBe(0);
 });

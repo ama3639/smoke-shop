@@ -23,6 +23,12 @@ export type Product = {
   purchasable: boolean;
   compatibility: Compatibility[];
   updated_at: string;
+  product_type: "accessory" | "cigarette";
+  brand: string;
+  sticks_per_pack: number;
+  packs_per_carton: number;
+  retail_available: boolean;
+  wholesale_available: boolean;
 };
 export type Catalog = {
   categories: { title: string; slug: string }[];

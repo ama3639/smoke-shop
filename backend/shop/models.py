@@ -1,6 +1,6 @@
 import uuid
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator
 from django.db import models
 from django.db.models import Q
 
@@ -30,10 +30,16 @@ class Product(models.Model):
     slug = models.SlugField(unique=True)
     sku = models.CharField(max_length=50, unique=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
+    product_type = models.CharField('نوع کالا', max_length=20, choices=[('accessory', 'اکسسوری'), ('cigarette', 'سیگار')], default='accessory')
+    brand = models.CharField('برند', max_length=100, blank=True)
+    sticks_per_pack = models.PositiveSmallIntegerField('تعداد نخ در بسته', default=20, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    packs_per_carton = models.PositiveSmallIntegerField('تعداد بسته در باکس', default=10, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    retail_available = models.BooleanField('معرفی عرضه تکی', default=True)
+    wholesale_available = models.BooleanField('معرفی عرضه عمده', default=False)
     description = models.TextField('توضیحات')
     material = models.CharField('جنس', max_length=100, blank=True)
     dimensions = models.CharField('ابعاد', max_length=100, blank=True)
-    illustration = models.CharField('طرح نمایشی', max_length=20, choices=[('case', 'کیف'), ('brush', 'پاک‌کن'), ('stand', 'پایه'), ('ring', 'واشر')], default='case')
+    illustration = models.CharField('طرح نمایشی', max_length=20, choices=[('case', 'کیف'), ('brush', 'پاک‌کن'), ('stand', 'پایه'), ('ring', 'واشر'), ('pack', 'بسته سیگار'), ('carton', 'باکس سیگار')], default='case')
     image = models.ImageField('تصویر واقعی کالا', upload_to='products/%Y/%m/', blank=True,
                               validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])])
     price = models.PositiveBigIntegerField('قیمت به تومان', default=0)
@@ -49,11 +55,13 @@ class Product(models.Model):
         constraints = [models.CheckConstraint(condition=Q(stock__gte=0), name='product_stock_nonnegative')]
 
     def clean(self):
+        if self.product_type == 'cigarette' and self.legal_status == self.LegalStatus.APPROVED_ONLINE:
+            raise ValidationError({'legal_status': 'سیگار فقط به‌صورت کاتالوگ یا معرفی عرضه حضوری قابل ثبت است.'})
         if self.legal_status == self.LegalStatus.APPROVED_ONLINE and not self.legal_reference.strip():
             raise ValidationError({'legal_reference': 'تأیید فروش آنلاین به مرجع کتبی نیاز دارد.'})
 
     def save(self, *args, **kwargs):
-        self.search_text = normalize(f'{self.title} {self.sku} {self.description} {self.material}')
+        self.search_text = normalize(f'{self.title} {self.sku} {self.brand} {self.description} {self.material}')
         super().save(*args, **kwargs)
 
     def __str__(self):

@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   try {
     const [products, catalog] = await Promise.all([
-      serverApi<Product[]>("catalog/products/"),
-      serverApi<Catalog>("catalog/"),
+      serverApi<Product[]>("catalog/products/?type=cigarette"),
+      serverApi<Catalog>("catalog/?type=cigarette"),
     ]);
     return (
       <Storefront

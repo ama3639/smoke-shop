@@ -15,8 +15,16 @@
   display: block;
   background: #eae6de;
 }
-.cart-product-image { flex: 0 0 110px; width: 110px; }
-@media (max-width: 740px) { .cart-product-image { flex-basis: 85px; width: 85px; } }
+.cart-product-image {
+  flex: 0 0 110px;
+  width: 110px;
+}
+@media (max-width: 740px) {
+  .cart-product-image {
+    flex-basis: 85px;
+    width: 85px;
+  }
+}
 .branch-card {
   padding: 20px 25px;
   border: 1px solid var(--line);
@@ -1096,14 +1104,15 @@ nav a {
   }
   .header-inner {
     height: 74px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 12px;
   }
   .brand {
     font-size: 19px;
   }
   .brand small {
-    font-size: 7px;
+    font-size: 6px;
+    letter-spacing: 0.8px;
   }
   .brand-icon {
     width: 35px;
@@ -1115,6 +1124,7 @@ nav a {
   .cart-link {
     padding-right: 14px;
     font-size: 11px;
+    white-space: nowrap;
   }
   .hero {
     grid-template-columns: 1fr;
@@ -1383,5 +1393,1445 @@ nav a {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* Tobacco catalog: the scene uses CSS cuboids and scroll-linked transforms. */
+.catalog-pack-art .pack-box.carton-box {
+  --pack-width: 218px;
+  --pack-height: 76px;
+  --pack-depth: 68px;
+}
+.catalog-pack-art .carton-box .pack-front {
+  grid-template-columns: 1fr 68px;
+  grid-template-rows: 18px 1fr;
+}
+.catalog-pack-art .carton-box .pack-mark > strong {
+  font-size: 26px;
+}
+.catalog-pack-art .carton-box .pack-warning {
+  height: auto;
+  font-size: 6px;
+}
+.cigarette-hero {
+  --scene-progress: 0;
+  position: relative;
+  height: 160svh;
+  min-height: 1050px;
+  background: #242925;
+  color: #f5f1e7;
+  isolation: isolate;
+}
+.hero-sticky {
+  position: sticky;
+  top: 91px;
+  height: calc(100svh - 91px);
+  min-height: 650px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 24% 50%, #4d514440 0%, transparent 58%), #242925;
+}
+.scene-bg-word {
+  position: absolute;
+  left: -2%;
+  bottom: 12%;
+  font-family: Georgia, serif;
+  font-size: 26vw;
+  letter-spacing: -0.055em;
+  color: #f5f1e708;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateX(calc(var(--scene-progress) * -4vw));
+}
+.scene-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    #ffffff02 0px,
+    #ffffff02 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  opacity: 0.3;
+}
+.scene-layout {
+  position: relative;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  align-items: center;
+  gap: 30px;
+  padding-block: 34px 88px;
+}
+.cigarette-hero-copy {
+  position: relative;
+  z-index: 3;
+  max-width: 490px;
+  transform: translateY(calc(var(--scene-progress) * -28px));
+}
+.scene-eyebrow {
+  font-size: 11px;
+  color: #c2b3a0;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scene-eyebrow > span {
+  width: 5px;
+  height: 5px;
+  background: #b78e64;
+  border-radius: 50%;
+}
+.cigarette-hero h1 {
+  font-size: clamp(57px, 5.7vw, 84px);
+  line-height: 1.35;
+  letter-spacing: -2px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+.cigarette-hero h1 > span {
+  color: #b6a68d;
+}
+.cigarette-hero-copy > p {
+  font-size: 13px;
+  line-height: 2.15;
+  color: #c0c0b4;
+  max-width: 330px;
+  margin-bottom: 28px;
+}
+.scene-actions {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+.light-button {
+  background: #f1ede3;
+  color: #242925;
+  border-radius: 2px;
+}
+.light-button:hover {
+  background: #fffdf8;
+}
+.scene-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #e0d8ca;
+  padding-block: 14px;
+}
+.scene-brand-note {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  margin-top: 37px;
+  color: #9c9f95;
+  font-size: 10px;
+}
+.scene-brand-note > span:first-child {
+  font-family: Georgia, serif;
+  letter-spacing: 2px;
+  color: #d1c3ad;
+  font-size: 15px;
+  border-left: 1px solid #ffffff28;
+  padding-left: 24px;
+}
+.display-stage {
+  position: relative;
+  width: 100%;
+  height: 540px;
+  perspective: 1200px;
+  direction: ltr;
+  transform-style: preserve-3d;
+}
+.scene-pack,
+.scene-carton {
+  position: absolute;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.scene-pack-main {
+  left: 44%;
+  top: 24%;
+  z-index: 4;
+  transform: translate3d(
+      calc(var(--scene-progress) * -72px),
+      calc(var(--scene-progress) * -88px),
+      90px
+    )
+    rotateY(calc(-25deg + var(--scene-progress) * 72deg))
+    rotateX(calc(6deg + var(--scene-progress) * -10deg))
+    rotateZ(calc(-9deg + var(--scene-progress) * 17deg));
+}
+.scene-pack-blue {
+  left: 12%;
+  top: 36%;
+  z-index: 3;
+  transform: translate3d(
+      calc(var(--scene-progress) * -100px),
+      calc(var(--scene-progress) * 20px),
+      -65px
+    )
+    rotateY(calc(-24deg - var(--scene-progress) * 22deg))
+    rotateZ(calc(12deg - var(--scene-progress) * 12deg));
+}
+.scene-pack-back {
+  left: 58%;
+  top: 5%;
+  z-index: 2;
+  transform: translate3d(
+      calc(var(--scene-progress) * 80px),
+      calc(var(--scene-progress) * -15px),
+      -130px
+    )
+    rotateY(calc(-28deg + var(--scene-progress) * 20deg)) rotateZ(14deg);
+}
+.scene-carton {
+  left: 19%;
+  top: 76%;
+  z-index: 5;
+  transform: translate3d(
+      calc(var(--scene-progress) * -6px),
+      calc(var(--scene-progress) * -40px),
+      50px
+    )
+    rotateX(calc(12deg + var(--scene-progress) * -15deg))
+    rotateY(calc(-20deg + var(--scene-progress) * -12deg)) rotateZ(-5deg);
+}
+.scene-orbit {
+  position: absolute;
+  border: 1px solid #c0b69c1c;
+  border-radius: 50%;
+  left: 4%;
+  top: 15%;
+  width: 90%;
+  height: 65%;
+  transform: rotate(-19deg);
+}
+.orbit-two {
+  left: 8%;
+  top: 21%;
+  width: 85%;
+  height: 63%;
+  transform: rotate(25deg);
+}
+.stage-platform {
+  position: absolute;
+  bottom: 4%;
+  left: 6%;
+  width: 90%;
+  height: 15%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #0005, transparent 70%);
+  transform: rotate(-10deg);
+}
+.stage-annotation {
+  position: absolute;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #aaa996;
+  z-index: 8;
+}
+.annotation-pack {
+  top: 9%;
+  left: 25%;
+  border-left: 1px solid #aaa99660;
+  padding-left: 9px;
+}
+.annotation-carton {
+  bottom: 0;
+  right: 8%;
+}
+.scene-bottom {
+  position: absolute;
+  bottom: 25px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  z-index: 8;
+}
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #b8b9ab;
+  font-size: 10px;
+}
+.scroll-hint svg {
+  border: 1px solid #ffffff30;
+  width: 35px;
+  height: 35px;
+  padding: 8px;
+  border-radius: 50%;
+}
+.scene-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 9px;
+  color: #aab0a2;
+  direction: ltr;
+}
+.scene-progress > i {
+  display: block;
+  width: 105px;
+  height: 1px;
+  background: #ffffff25;
+}
+.scene-progress b {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: #c4a078;
+  transform-origin: left;
+  transform: scaleX(calc(0.05 + var(--scene-progress) * 0.95));
+}
+.motion-toggle {
+  color: #bbbfb4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  font-size: 10px;
+}
+.motion-toggle:disabled {
+  opacity: 0.85;
+}
+.scene-static {
+  height: auto;
+  min-height: 0;
+}
+.scene-static .hero-sticky {
+  position: relative;
+  top: 0;
+}
+.scene-static .scene-pack,
+.scene-static .scene-carton {
+  will-change: auto;
+}
+.pack-box {
+  --pack-width: 164px;
+  --pack-height: 254px;
+  --pack-depth: 54px;
+  --pack-color: #884334;
+  position: relative;
+  width: var(--pack-width);
+  height: var(--pack-height);
+  transform-style: preserve-3d;
+  direction: ltr;
+  font-family: Georgia, serif;
+}
+.pack-face {
+  position: absolute;
+  backface-visibility: hidden;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px #00000018;
+}
+.pack-front,
+.pack-back {
+  width: var(--pack-width);
+  height: var(--pack-height);
+  background: #e9e5da;
+}
+.pack-front {
+  transform: translateZ(calc(var(--pack-depth) / 2));
+  display: flex;
+  flex-direction: column;
+  border-radius: 1px;
+  background:
+    linear-gradient(115deg, #fff9 0%, transparent 40%, #00000012 100%), #e9e5da;
+}
+.pack-back {
+  transform: rotateY(180deg) translateZ(calc(var(--pack-depth) / 2));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  color: #5c574b;
+  font-size: 12px;
+  text-align: center;
+  padding: 22px 12px;
+  font-family: "Vazirmatn", sans-serif;
+}
+.pack-back > strong {
+  font-family: Georgia, serif;
+  font-size: 25px;
+}
+.pack-back > small {
+  font-size: 8px;
+}
+.pack-barcode {
+  height: 35px;
+  width: 70%;
+  background: repeating-linear-gradient(
+    90deg,
+    #242925 0px,
+    #242925 2px,
+    transparent 2px,
+    transparent 4px,
+    #242925 4px,
+    #242925 5px,
+    transparent 5px,
+    transparent 9px
+  );
+}
+.pack-left,
+.pack-right {
+  height: var(--pack-height);
+  width: var(--pack-depth);
+  top: 0;
+  background: linear-gradient(90deg, #0002, transparent), var(--pack-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ebe7dd;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.pack-left {
+  left: calc(var(--pack-depth) / -2);
+  transform: rotateY(-90deg);
+}
+.pack-right {
+  left: calc(var(--pack-width) - var(--pack-depth) / 2);
+  transform: rotateY(90deg);
+}
+.pack-left > span,
+.pack-right > span {
+  writing-mode: vertical-rl;
+}
+.pack-top,
+.pack-bottom {
+  height: var(--pack-depth);
+  width: var(--pack-width);
+  left: 0;
+  background: var(--pack-color);
+  color: #eee8dc;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+.pack-top {
+  top: calc(var(--pack-depth) / -2);
+  transform: rotateX(90deg);
+  background: linear-gradient(#ffffff19, transparent), var(--pack-color);
+}
+.pack-bottom {
+  top: calc(var(--pack-height) - var(--pack-depth) / 2);
+  transform: rotateX(-90deg);
+}
+.pack-seal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 8px;
+  background: var(--pack-color);
+  color: #f8f4e8;
+  font-family: Arial, sans-serif;
+  font-size: 6px;
+  letter-spacing: 1.2px;
+  height: 28px;
+  border-bottom: 1px solid #0002;
+}
+.pack-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  padding: 10px 7px;
+  color: var(--pack-color);
+}
+.pack-mark > strong {
+  font-size: 35px;
+  font-weight: 600;
+  letter-spacing: -1.9px;
+  line-height: 1.1;
+}
+.pack-rule {
+  width: 31px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.pack-variant {
+  font-size: 9px;
+  font-family: Arial, sans-serif;
+  letter-spacing: 3px;
+}
+.pack-lower {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 8px;
+  font-size: 6px;
+  letter-spacing: 1px;
+  color: #716b5d;
+  border-top: 1px solid #c3baa680;
+}
+.pack-lower > span:last-child {
+  font-family: "Vazirmatn", sans-serif;
+  letter-spacing: 0;
+}
+.pack-warning {
+  height: 60px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: #ddd7c9;
+  color: #2f3029;
+  font-family: "Vazirmatn", sans-serif;
+  font-size: 10px;
+  line-height: 1.75;
+  border-top: 1px solid #bfb8a6;
+}
+.carton-box {
+  --pack-width: 288px;
+  --pack-height: 100px;
+  --pack-depth: 90px;
+}
+.carton-box .pack-front {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  grid-template-rows: 18px 1fr;
+}
+.carton-box .pack-seal {
+  grid-column: span 2;
+  height: 18px;
+  padding-block: 5px;
+  font-size: 5px;
+}
+.carton-box .pack-mark {
+  flex-direction: row;
+  gap: 8px;
+  padding: 8px;
+  grid-column: 1;
+  grid-row: 2;
+}
+.carton-box .pack-mark > strong {
+  font-size: 33px;
+}
+.carton-box .pack-variant {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.carton-box .pack-rule {
+  display: none;
+}
+.carton-box .pack-warning {
+  grid-column: 2;
+  grid-row: 2;
+  height: auto;
+  font-size: 7px;
+  border-top: 0;
+  border-left: 1px solid #bfb8a6;
+}
+.carton-box .pack-lower {
+  display: none;
+}
+.catalog-pack-art {
+  height: 305px;
+  display: grid;
+  place-items: center;
+  perspective: 950px;
+  overflow: hidden;
+}
+.catalog-pack-art .pack-box {
+  --pack-width: 132px;
+  --pack-height: 203px;
+  --pack-depth: 43px;
+  transform: rotateY(-26deg) rotateX(7deg) rotateZ(-7deg);
+  transition: transform 320ms var(--ease);
+}
+.catalog-pack-art .pack-mark > strong {
+  font-size: 29px;
+}
+.catalog-pack-art .pack-seal {
+  height: 22px;
+  font-size: 5px;
+  letter-spacing: 0.6px;
+}
+.catalog-pack-art .pack-warning {
+  height: 49px;
+  font-size: 8px;
+}
+.catalog-pack-art .pack-lower {
+  font-size: 5px;
+  padding: 7px 5px;
+}
+.catalog-pack-art .pack-mark {
+  gap: 5px;
+}
+.brand-strip {
+  background: #e8e4da;
+  border-bottom: 1px solid var(--line);
+}
+.brand-strip-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  min-height: 125px;
+}
+.brand-strip-inner > span {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #817767;
+  direction: ltr;
+}
+.brand-strip-inner > strong {
+  font-family: Georgia, serif;
+  font-size: 43px;
+  font-weight: 500;
+  letter-spacing: -2px;
+}
+.brand-strip-inner > p {
+  margin: 0;
+  font-size: 12px;
+  color: #5d5b52;
+}
+.brand-strip-inner > p > span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.brand-strip-inner > a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+}
+.cigarette-catalog {
+  padding-block: 82px 70px;
+}
+.catalog-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  align-items: end;
+  margin-bottom: 33px;
+}
+.catalog-heading h2 {
+  font-size: 43px;
+  line-height: 1.6;
+  font-weight: 500;
+  letter-spacing: -1px;
+  margin-bottom: 0;
+}
+.catalog-heading h2 > span {
+  color: #7d776a;
+}
+.catalog-heading > p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 2.2;
+  margin-bottom: 9px;
+}
+.sale-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+.sale-mode-tabs > button {
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: transparent;
+  font-size: 11px;
+}
+.sale-mode-tabs > button.active {
+  color: #f7f3e9;
+  background: #30352e;
+  border-color: #30352e;
+}
+.sale-mode-tabs > span {
+  margin-right: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+.brand-filter select {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 6px 9px;
+  font-size: 10px;
+  min-height: 35px;
+}
+.cigarette-products .product-image {
+  background: #e9e5dc;
+  min-height: 305px;
+}
+.cig-model-number {
+  position: absolute;
+  top: 17px;
+  left: 17px;
+  color: #8f8675;
+  font-size: 8px;
+  letter-spacing: 1.6px;
+  z-index: 2;
+}
+.cigarette-products .product-status {
+  top: auto;
+  bottom: 15px;
+  right: 15px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #766d5d;
+  font-size: 9px;
+}
+.cigarette-products .product-card h3 {
+  font-size: 18px;
+  font-weight: 500;
+}
+.pack-format-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.cigarette-products .product-bottom {
+  font-size: 10px;
+}
+.sample-note {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-top: 45px;
+  padding-block: 17px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.sample-note > span {
+  font-size: 9px;
+  border: 1px solid var(--line);
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.sample-note > p {
+  margin: 0;
+}
+.wholesale-section {
+  background: #e3dfd4;
+  padding-block: 63px;
+  overflow: hidden;
+}
+.wholesale-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 60px;
+  align-items: center;
+}
+.wholesale-layout h2 {
+  font-size: 43px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  margin-bottom: 20px;
+}
+.wholesale-layout p {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 400px;
+  line-height: 2.2;
+}
+.wholesale-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 27px;
+}
+.wholesale-visual {
+  position: relative;
+  height: 350px;
+  direction: ltr;
+  perspective: 1200px;
+}
+.wholesale-box {
+  position: absolute;
+  top: 55%;
+  left: 10%;
+  transform: rotateY(-25deg) rotateX(15deg) rotateZ(-8deg);
+  transform-style: preserve-3d;
+  z-index: 1;
+}
+.wholesale-pack {
+  position: absolute;
+  top: 12%;
+  left: 57%;
+  transform: rotateY(-27deg) rotateZ(12deg);
+  transform-style: preserve-3d;
+}
+.wholesale-visual > span {
+  position: absolute;
+  bottom: -5px;
+  left: 11%;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #8b7e68;
+}
+.trade-details {
+  padding-block: 65px;
+}
+.trade-details-heading h2 {
+  font-size: 29px;
+  font-weight: 500;
+  margin-bottom: 35px;
+}
+.trade-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 45px;
+}
+.trade-detail-grid > div {
+  border-top: 1px solid var(--line);
+  padding-top: 23px;
+}
+.trade-detail-grid > div > span {
+  font-family: Georgia, serif;
+  font-size: 32px;
+  color: #9f8b6c;
+  display: block;
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+.trade-detail-grid h3 {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.trade-detail-grid p {
+  font-size: 12px;
+  line-height: 2;
+  color: var(--muted);
+  max-width: 290px;
+}
+.health-notice {
+  border-top: 1px solid var(--line);
+  padding-block: 20px 30px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.scroll-reveal {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 550ms var(--ease),
+    transform 550ms var(--ease);
+}
+.scroll-reveal[data-reveal="ready"] {
+  opacity: 0;
+  transform: translateY(28px);
+}
+.scroll-reveal[data-reveal="visible"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+.detail-image .catalog-pack-art {
+  height: 440px;
+}
+.detail-image .catalog-pack-art .pack-box:not(.carton-box) {
+  --pack-width: 180px;
+  --pack-height: 277px;
+  --pack-depth: 58px;
+}
+.detail-image .pack-mark > strong {
+  font-size: 39px;
+}
+.detail-image .pack-warning {
+  font-size: 11px;
+  height: 65px;
+}
+.detail-image .pack-seal {
+  height: 28px;
+  font-size: 6px;
+}
+.detail-copy .cigarette-label {
+  color: var(--copper);
+  font-size: 11px;
+  margin-top: 10px;
+}
+.cart-product-image .catalog-pack-art {
+  height: 100px;
+}
+.cart-product-image .pack-box {
+  scale: 0.32;
+}
+@media (hover: hover) and (pointer: fine) {
+  .product-card:hover .catalog-pack-art .pack-box {
+    transform: rotateY(-8deg) rotateX(2deg) rotateZ(-2deg);
+  }
+  .scene-link:hover {
+    color: white;
+  }
+}
+@media (min-width: 1600px) {
+  .scene-layout {
+    max-width: 1440px;
+  }
+  .display-stage {
+    scale: 1.12;
+  }
+  .cigarette-hero h1 {
+    font-size: 94px;
+  }
+}
+@media (max-width: 1100px) {
+  .scene-layout {
+    gap: 15px;
+    grid-template-columns: 1fr 1.1fr;
+  }
+  .display-stage {
+    scale: 0.85;
+    transform-origin: center;
+  }
+  .cigarette-hero h1 {
+    font-size: 65px;
+  }
+  .scene-brand-note {
+    margin-top: 26px;
+  }
+  .wholesale-layout {
+    gap: 25px;
+  }
+  .wholesale-visual {
+    scale: 0.9;
+    transform-origin: center;
+  }
+  .wholesale-actions {
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  .brand-strip-inner {
+    gap: 20px;
+  }
+}
+@media (max-width: 740px) {
+  .cigarette-hero {
+    height: 155svh;
+    min-height: 1180px;
+  }
+  .hero-sticky {
+    top: 74px;
+    height: calc(100svh - 74px);
+    min-height: 590px;
+  }
+  .scene-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: stretch;
+    justify-content: start;
+    padding-top: 20px;
+    padding-bottom: 55px;
+  }
+  .scene-bg-word {
+    font-size: 43vw;
+    bottom: 26%;
+    left: 3%;
+    transform: none;
+  }
+  .cigarette-hero-copy {
+    max-width: none;
+    padding-inline: 3px;
+    transform: translateY(calc(var(--scene-progress) * -16px));
+  }
+  .scene-eyebrow {
+    font-size: 9px;
+    margin-bottom: 13px;
+  }
+  .cigarette-hero h1 {
+    font-size: 42px;
+    line-height: 1.35;
+    letter-spacing: -1px;
+    margin-bottom: 13px;
+  }
+  .cigarette-hero h1 br:nth-of-type(2) {
+    display: none;
+  }
+  .cigarette-hero h1 > span {
+    margin-left: 8px;
+  }
+  .cigarette-hero-copy > p {
+    font-size: 11px;
+    line-height: 1.9;
+    max-width: 285px;
+    margin-bottom: 19px;
+  }
+  .scene-actions {
+    gap: 22px;
+  }
+  .scene-actions .button {
+    min-height: 43px;
+    padding: 11px 16px;
+    font-size: 10px;
+  }
+  .scene-link {
+    font-size: 10px;
+  }
+  .scene-brand-note {
+    display: none;
+  }
+  .display-stage {
+    height: 280px;
+    width: 100%;
+    scale: 1;
+    perspective: 950px;
+    margin-top: 12px;
+  }
+  .scene-pack .pack-box {
+    --pack-width: 112px;
+    --pack-height: 173px;
+    --pack-depth: 36px;
+  }
+  .scene-pack .pack-seal {
+    height: 19px;
+    padding: 5px;
+    font-size: 4px;
+    letter-spacing: 0.5px;
+  }
+  .scene-pack .pack-mark > strong {
+    font-size: 25px;
+  }
+  .scene-pack .pack-mark {
+    gap: 5px;
+    padding: 7px 5px;
+  }
+  .scene-pack .pack-variant {
+    font-size: 7px;
+    letter-spacing: 2px;
+  }
+  .scene-pack .pack-warning {
+    height: 43px;
+    font-size: 7px;
+  }
+  .scene-pack .pack-lower {
+    font-size: 4px;
+    padding: 5px;
+  }
+  .scene-pack-main {
+    left: 45%;
+    top: 25%;
+    transform: translate3d(
+        calc(var(--scene-progress) * -25px),
+        calc(var(--scene-progress) * -40px),
+        40px
+      )
+      rotateY(calc(-25deg + var(--scene-progress) * 65deg)) rotateX(6deg)
+      rotateZ(calc(-9deg + var(--scene-progress) * 16deg));
+  }
+  .scene-pack-blue {
+    left: 9%;
+    top: 38%;
+    transform: translate3d(
+        calc(var(--scene-progress) * -12px),
+        calc(var(--scene-progress) * 15px),
+        -30px
+      )
+      rotateY(calc(-24deg - var(--scene-progress) * 14deg)) rotateZ(12deg);
+  }
+  .scene-pack-back {
+    left: 60%;
+    top: 4%;
+    transform: translate3d(
+        calc(var(--scene-progress) * 10px),
+        calc(var(--scene-progress) * -20px),
+        -70px
+      )
+      rotateY(-28deg) rotateZ(14deg);
+  }
+  .scene-carton {
+    left: 19%;
+    top: 70%;
+    transform: translate3d(0, calc(var(--scene-progress) * -15px), 20px)
+      rotateX(12deg) rotateY(-20deg) rotateZ(-5deg);
+  }
+  .scene-carton .carton-box {
+    --pack-width: 205px;
+    --pack-height: 71px;
+    --pack-depth: 64px;
+  }
+  .scene-carton .pack-front {
+    grid-template-columns: 1fr 64px;
+    grid-template-rows: 14px 1fr;
+  }
+  .scene-carton .pack-seal {
+    height: 14px;
+    font-size: 4px;
+    letter-spacing: 1px;
+  }
+  .scene-carton .pack-mark > strong {
+    font-size: 23px;
+  }
+  .scene-carton .pack-variant {
+    font-size: 5px;
+  }
+  .scene-carton .pack-warning {
+    font-size: 5px;
+  }
+  .scene-carton .pack-top {
+    font-size: 11px;
+  }
+  .stage-annotation {
+    font-size: 7px;
+    letter-spacing: 1px;
+  }
+  .annotation-pack {
+    left: 23%;
+    top: 6%;
+  }
+  .annotation-carton {
+    bottom: -2px;
+    right: 5%;
+  }
+  .scene-bottom {
+    bottom: 17px;
+    gap: 12px;
+  }
+  .scroll-hint {
+    font-size: 8px;
+    gap: 7px;
+  }
+  .scroll-hint svg {
+    width: 29px;
+    height: 29px;
+    padding: 6px;
+  }
+  .scene-progress {
+    display: none;
+  }
+  .motion-toggle {
+    font-size: 8px;
+    gap: 5px;
+  }
+  .scene-static {
+    min-height: 0;
+  }
+  .brand-strip-inner {
+    min-height: 115px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-block: 20px;
+  }
+  .brand-strip-inner > span {
+    font-size: 7px;
+    flex-basis: 20%;
+  }
+  .brand-strip-inner > strong {
+    font-size: 34px;
+  }
+  .brand-strip-inner > p {
+    font-size: 10px;
+    width: 60%;
+  }
+  .brand-strip-inner > p > span {
+    font-size: 9px;
+  }
+  .brand-strip-inner > a {
+    font-size: 10px;
+    margin-right: auto;
+  }
+  .cigarette-catalog {
+    padding-block: 43px;
+  }
+  .catalog-heading {
+    gap: 15px;
+    align-items: start;
+    margin-bottom: 23px;
+  }
+  .catalog-heading h2 {
+    font-size: 29px;
+    line-height: 1.6;
+    letter-spacing: -0.6px;
+  }
+  .catalog-heading .eyebrow {
+    font-size: 9px;
+    margin-bottom: 10px;
+  }
+  .catalog-heading > p {
+    font-size: 9px;
+    line-height: 2.1;
+    max-width: 125px;
+    margin: 5px 0 0;
+  }
+  .sale-mode-tabs {
+    gap: 5px;
+    padding-bottom: 15px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .sale-mode-tabs > button {
+    font-size: 9px;
+    padding: 8px 11px;
+    gap: 6px;
+    min-height: 42px;
+  }
+  .sale-mode-tabs > button svg {
+    width: 14px;
+  }
+  .sale-mode-tabs > span {
+    font-size: 9px;
+  }
+  .brand-filter select {
+    font-size: 9px;
+    padding: 5px;
+  }
+  .cigarette-products .product-image {
+    min-height: 225px;
+  }
+  .catalog-pack-art {
+    height: 225px;
+  }
+  .catalog-pack-art .pack-box {
+    --pack-width: 91px;
+    --pack-height: 142px;
+    --pack-depth: 30px;
+  }
+  .catalog-pack-art .pack-box.carton-box {
+    --pack-width: 140px;
+    --pack-height: 49px;
+    --pack-depth: 44px;
+  }
+  .catalog-pack-art .carton-box .pack-front {
+    grid-template-columns: 1fr 43px;
+    grid-template-rows: 13px 1fr;
+  }
+  .catalog-pack-art .carton-box .pack-mark > strong {
+    font-size: 17px;
+  }
+  .catalog-pack-art .carton-box .pack-warning {
+    font-size: 4px;
+  }
+  .catalog-pack-art .pack-mark > strong {
+    font-size: 21px;
+    letter-spacing: -1px;
+  }
+  .catalog-pack-art .pack-mark {
+    gap: 3px;
+    padding: 5px 3px;
+  }
+  .catalog-pack-art .pack-seal {
+    height: 16px;
+    padding: 4px;
+    font-size: 3.5px;
+    letter-spacing: 0.4px;
+  }
+  .catalog-pack-art .pack-warning {
+    height: 36px;
+    font-size: 6px;
+  }
+  .catalog-pack-art .pack-variant {
+    font-size: 6px;
+    letter-spacing: 2px;
+  }
+  .catalog-pack-art .pack-lower {
+    font-size: 3.5px;
+    padding: 5px 3px;
+  }
+  .catalog-pack-art .pack-top {
+    font-size: 9px;
+  }
+  .catalog-pack-art .pack-left,
+  .catalog-pack-art .pack-right {
+    font-size: 6px;
+  }
+  .cig-model-number {
+    font-size: 6px;
+    letter-spacing: 1px;
+    left: 10px;
+    top: 13px;
+  }
+  .cigarette-products .product-status {
+    bottom: 12px;
+    right: 10px;
+    font-size: 8px;
+  }
+  .cigarette-products .product-card h3 {
+    font-size: 14px;
+  }
+  .pack-format-line {
+    font-size: 9px;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 11px;
+  }
+  .cigarette-products .product-bottom {
+    font-size: 9px;
+  }
+  .sample-note {
+    margin-top: 26px;
+    gap: 10px;
+    align-items: start;
+    font-size: 9px;
+  }
+  .sample-note > span {
+    font-size: 8px;
+    padding: 2px 6px;
+  }
+  .wholesale-section {
+    padding-block: 36px;
+  }
+  .wholesale-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .wholesale-layout h2 {
+    font-size: 32px;
+  }
+  .wholesale-layout p {
+    font-size: 11px;
+  }
+  .wholesale-actions {
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .wholesale-actions .button {
+    font-size: 10px;
+    padding-inline: 15px;
+  }
+  .wholesale-actions .text-link {
+    font-size: 10px;
+  }
+  .wholesale-visual {
+    height: 300px;
+    scale: 0.85;
+    margin-top: 3px;
+    transform-origin: top center;
+  }
+  .wholesale-box {
+    top: 59%;
+    left: 2%;
+  }
+  .wholesale-pack {
+    left: 57%;
+    top: 3%;
+  }
+  .wholesale-visual .pack-box {
+    --pack-width: 145px;
+    --pack-height: 224px;
+    --pack-depth: 48px;
+  }
+  .wholesale-visual .carton-box {
+    --pack-width: 260px;
+    --pack-height: 90px;
+    --pack-depth: 80px;
+  }
+  .wholesale-visual > span {
+    left: 5%;
+    bottom: -13px;
+  }
+  .trade-details {
+    padding-block: 37px;
+  }
+  .trade-details-heading h2 {
+    font-size: 24px;
+    margin-bottom: 26px;
+  }
+  .trade-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .trade-detail-grid > div {
+    display: grid;
+    grid-template-columns: 35px 1fr;
+    column-gap: 17px;
+    padding-top: 18px;
+  }
+  .trade-detail-grid > div > span {
+    grid-row: span 2;
+    font-size: 27px;
+    margin: 0;
+  }
+  .trade-detail-grid h3 {
+    font-size: 16px;
+    margin-bottom: 5px;
+  }
+  .trade-detail-grid p {
+    font-size: 11px;
+    margin: 0;
+    max-width: none;
+  }
+  .health-notice {
+    font-size: 9px;
+    padding-bottom: 23px;
+  }
+  .detail-image .catalog-pack-art {
+    height: 310px;
+  }
+  .detail-image .catalog-pack-art .pack-box:not(.carton-box) {
+    --pack-width: 142px;
+    --pack-height: 219px;
+    --pack-depth: 46px;
+  }
+  .detail-image .pack-mark > strong {
+    font-size: 31px;
+  }
+  .detail-image .pack-warning {
+    font-size: 9px;
+    height: 52px;
+  }
+  .detail-image .pack-seal {
+    font-size: 5px;
+    height: 22px;
+  }
+}
+@media (max-width: 370px) {
+  .cigarette-hero h1 {
+    font-size: 36px;
+  }
+  .scene-layout {
+    padding-top: 22px;
+  }
+  .hero-sticky {
+    min-height: 590px;
+  }
+  .display-stage {
+    scale: 0.9;
+    transform-origin: top center;
+  }
+  .sale-mode-tabs > span {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cigarette-hero {
+    height: auto;
+    min-height: 0;
+  }
+  .hero-sticky {
+    position: relative;
+    top: 0;
+  }
+  .scene-pack,
+  .scene-carton {
+    will-change: auto;
+  }
+  .scroll-reveal[data-reveal="ready"] {
+    opacity: 1;
+    transform: none;
+  }
+  .catalog-pack-art .pack-box {
+    transition: none;
   }
 }

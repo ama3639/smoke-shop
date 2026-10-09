@@ -200,7 +200,28 @@ class ShopTests(TestCase):
             call_command('seed_demo', stdout=io.StringIO())
         self.assertEqual(Product.objects.filter(sku__startswith='DEMO-').count(), 6)
         self.assertFalse(Product.objects.filter(sku__startswith='DEMO-', legal_status='APPROVED_ONLINE').exists())
-        self.assertFalse(Category.objects.get(slug='care').online_enabled)
+        self.assertFalse(Category.objects.get(slug='regular').online_enabled)
+
+    def test_cigarette_never_enters_online_cart_even_if_approval_is_misconfigured(self):
+        self.product.product_type = 'cigarette'
+        with self.assertRaises(ValidationError):
+            self.product.full_clean()
+        self.product.save()
+        self.assertEqual(self.add().status_code, 403)
+        self.assertFalse(self.client.get('/api/v1/catalog/products/').json()['data'][0]['purchasable'])
+
+    def test_cigarette_catalog_modes_and_brand_search(self):
+        call_command('seed_demo', stdout=io.StringIO())
+        endpoint = '/api/v1/catalog/products/'
+        all_cigarettes = self.client.get(endpoint, {'type': 'cigarette'}).json()['data']
+        self.assertEqual(len(all_cigarettes), 6)
+        self.assertTrue(all(p['brand'] == 'Winston' and not p['purchasable'] for p in all_cigarettes))
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'wholesale'}).json()['data']), 5)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'retail'}).json()['data']), 5)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'q': 'كامپكت'}).json()['data']), 2)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'brand': 'Winston'}).json()['data']), 6)
+        categories = self.client.get('/api/v1/catalog/', {'type': 'cigarette'}).json()['data']['categories']
+        self.assertEqual({c['slug'] for c in categories}, {'regular', 'slim', 'compact'})
 
     def test_product_default_new_fields_and_health(self):
         self.assertEqual(self.client.get('/api/v1/health/').json()['data']['status'], 'ok')

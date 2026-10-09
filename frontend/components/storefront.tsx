@@ -3,19 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowDown,
   ArrowLeft,
   ArrowUpLeft,
-  Check,
-  Layers,
+  Boxes,
+  Package,
   Search,
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { api, Catalog, money, number, Product } from "@/lib/api";
-import { HeroArt, ProductArt } from "./product-art";
+import { api, Catalog, number, Product } from "@/lib/api";
 import ProductImage from "./product-image";
+import MotionScene from "./motion-scene";
+import Reveal from "./reveal";
+import { PackBox } from "./pack-3d";
 
+type Mode = "all" | "retail" | "wholesale";
 export default function Storefront({
   initialProducts,
   catalog,
@@ -28,14 +30,18 @@ export default function Storefront({
   const [products, setProducts] = useState(initialProducts);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
-  const [device, setDevice] = useState("");
+  const [brand, setBrand] = useState("");
+  const [mode, setMode] = useState<Mode>("all");
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(
-    unavailable ? "ارتباط با کاتالوگ برقرار نشد. لطفاً دوباره تلاش کنید." : "",
-  );
-  const first = useRef(true);
   const [retry, setRetry] = useState(0);
+  const [error, setError] = useState(
+    unavailable ? "ارتباط با کاتالوگ برقرار نشد. دوباره تلاش کنید." : "",
+  );
+  const brands = [
+    ...new Set(initialProducts.map((p) => p.brand).filter(Boolean)),
+  ];
+  const first = useRef(true);
   useEffect(() => {
     if (first.current) {
       first.current = false;
@@ -46,9 +52,11 @@ export default function Storefront({
       setLoading(true);
       try {
         const params = new URLSearchParams({
+          type: "cigarette",
           q: query,
           category,
-          device,
+          brand,
+          mode,
           available: available ? "1" : "0",
         });
         setProducts(
@@ -65,112 +73,90 @@ export default function Storefront({
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
-    }, 220);
+    }, 180);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, category, device, available, retry]);
+  }, [query, category, brand, mode, available, retry]);
+  function clear() {
+    setQuery("");
+    setCategory("");
+    setBrand("");
+    setMode("all");
+    setAvailable(false);
+  }
 
   return (
     <>
-      <section className="container hero">
-        <div className="hero-copy">
-          <div className="eyebrow">
-            <span /> جزئیات کوچک، انتخاب‌های دقیق
-          </div>
-          <h1>
-            هر قطعه،
-            <br />
-            در جای <em>درست.</em>
-          </h1>
+      <MotionScene onMode={setMode} />
+      <div className="brand-strip">
+        <div className="container brand-strip-inner">
+          <span>BRAND / 01</span>
+          <strong dir="ltr">Winston</strong>
           <p>
-            از مشخصات تا سازگاری؛ اکسسوری مورد نیازتان را با اطلاعات روشن و بدون
-            حدس پیدا کنید.
+            تمرکز فعلی: وینستون{" "}
+            <span>مدل‌ها و واحدهای عرضه، در یک کاتالوگ.</span>
           </p>
-          <div className="hero-actions">
-            <a className="button primary" href="#finder">
-              قطعه سازگار را پیدا کن <ArrowUpLeft size={19} />
-            </a>
-            <a className="text-link" href="#catalog">
-              دیدن کاتالوگ <ArrowLeft size={18} />
-            </a>
-          </div>
-          <div className="hero-note">
-            <span className="note-line" /> انتخاب بر اساس مدل، جنس و ابعاد
-          </div>
+          <a href="#catalog">
+            مرور مدل‌ها <ArrowLeft size={16} />
+          </a>
         </div>
-        <HeroArt />
-      </section>
-      <section className="principles container" aria-label="اصول فروشگاه">
-        <div>
-          <span>۰۱ /</span>
-          <strong>مشخصات، قبل از انتخاب</strong>
-          <p>جنس و ابعاد در یک نگاه</p>
-        </div>
-        <div>
-          <span>۰۲ /</span>
-          <strong>سازگاری قابل بررسی</strong>
-          <p>همراه با منبع و تاریخ بررسی</p>
-        </div>
-        <div>
-          <span>۰۳ /</span>
-          <strong>وضعیت عرضه شفاف</strong>
-          <p>تفکیک کاتالوگ و اقلام قابل خرید</p>
-        </div>
-      </section>
-      <section className="finder-section" id="finder">
-        <div className="container finder">
-          <div>
-            <div className="eyebrow">انتخاب‌گر سازگاری</div>
-            <h2>از مدل وسیله شروع کنید.</h2>
-            <p>قطعات مرتبط با مدل شما، یک‌جا و قابل بررسی.</p>
-          </div>
-          <div className="finder-controls">
-            <label htmlFor="device">مدل وسیله یا اتصال</label>
-            <div className="finder-select">
-              <Layers size={20} />
-              <select
-                id="device"
-                value={device}
-                onChange={(e) => setDevice(e.target.value)}
-              >
-                <option value="">انتخاب مدل</option>
-                {catalog.devices.map((d) => (
-                  <option key={d.slug} value={d.slug}>
-                    {d.title}
-                  </option>
-                ))}
-              </select>
+      </div>
+      <section className="container cigarette-catalog" id="catalog">
+        <Reveal>
+          <div className="catalog-heading">
+            <div>
+              <div className="eyebrow">کاتالوگ سیگار / وینستون</div>
+              <h2>
+                مدل‌ها را
+                <br />
+                <span>کنار هم ببینید.</span>
+              </h2>
             </div>
-            <a href="#catalog" className="button primary">
-              مشاهده قطعات <ArrowDown size={18} />
-            </a>
+            <p>
+              نام مدل، نوع بسته‌بندی و مسیر عرضه.
+              <br />
+              اطلاعات روشن برای مراجعه و همکاری.
+            </p>
           </div>
-        </div>
-      </section>
-      <section className="container catalog-section" id="catalog">
-        <div className="section-heading">
-          <div>
-            <div className="eyebrow">کاتالوگ / اکسسوری و قطعات</div>
-            <h2>برای هر جزئیات، یک انتخاب.</h2>
-          </div>
-          <span className="result-count">
-            {number(products.length)} کالا در کاتالوگ
-          </span>
+        </Reveal>
+        <div className="sale-mode-tabs" aria-label="نوع عرضه">
+          <button
+            className={mode === "all" ? "active" : ""}
+            aria-pressed={mode === "all"}
+            onClick={() => setMode("all")}
+          >
+            همه مدل‌ها
+          </button>
+          <button
+            className={mode === "retail" ? "active" : ""}
+            aria-pressed={mode === "retail"}
+            onClick={() => setMode("retail")}
+          >
+            <Package size={16} /> تکی / بسته
+          </button>
+          <button
+            className={mode === "wholesale" ? "active" : ""}
+            aria-pressed={mode === "wholesale"}
+            onClick={() => setMode("wholesale")}
+          >
+            <Boxes size={17} /> عمده / باکس
+          </button>
+          <span>{number(products.length)} مدل</span>
         </div>
         <div className="catalog-toolbar">
-          <div className="category-tabs" aria-label="دسته‌بندی کالا">
+          <div className="category-tabs" aria-label="نوع بسته‌بندی">
             <button
               className={!category ? "selected" : ""}
               onClick={() => setCategory("")}
             >
-              همه کالاها
+              همه نوع‌ها
             </button>
             {catalog.categories.map((c) => (
               <button
-                key={c.slug}
                 className={category === c.slug ? "selected" : ""}
+                key={c.slug}
                 onClick={() => setCategory(c.slug)}
               >
                 {c.title}
@@ -181,7 +167,7 @@ export default function Storefront({
             <Search size={18} />
             <input
               aria-label="جست‌وجوی کالا"
-              placeholder="نام کالا یا کد قطعه…"
+              placeholder="جست‌وجوی مدل یا برند…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -197,21 +183,29 @@ export default function Storefront({
         </div>
         <div className="filter-row">
           <span>
-            <SlidersHorizontal size={15} /> انتخاب دقیق‌تر
+            <SlidersHorizontal size={15} /> فیلتر کاتالوگ
           </span>
+          <label className="brand-filter">
+            برند
+            <select
+              aria-label="فیلتر برند"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+            >
+              <option value="">همه برندها</option>
+              {brands.map((b) => (
+                <option key={b}>{b}</option>
+              ))}
+            </select>
+          </label>
           <label>
             <input
               type="checkbox"
               checked={available}
               onChange={(e) => setAvailable(e.target.checked)}
             />{" "}
-            فقط کالاهای موجود
+            فقط موجود
           </label>
-          {device && (
-            <button onClick={() => setDevice("")}>
-              حذف فیلتر مدل <X size={14} />
-            </button>
-          )}
         </div>
         {error ? (
           <div className="empty-state" role="alert">
@@ -219,33 +213,33 @@ export default function Storefront({
             <p>{error}</p>
             <button
               className="button secondary"
-              onClick={() => unavailable ? window.location.reload() : setRetry((v) => v + 1)}
+              onClick={() =>
+                unavailable ? location.reload() : setRetry((v) => v + 1)
+              }
             >
               تلاش دوباره
             </button>
           </div>
         ) : (
           <div
+            className={`product-grid cigarette-products ${loading ? "is-loading" : ""}`}
             aria-busy={loading}
-            className={`product-grid ${loading ? "is-loading" : ""}`}
           >
-            {products.map((p) => (
+            {products.map((p, index) => (
               <Link
-                href={`/products/${p.slug}`}
-                key={p.id}
                 className="product-card"
+                key={p.id}
+                href={`/products/${p.slug}`}
               >
                 <div className="product-image">
-                  <ProductImage product={p} />
-                  <span className="product-status">
-                    {p.purchasable
-                      ? "قابل خرید آنلاین"
-                      : p.legal_status === "IN_PERSON_ONLY"
-                        ? "عرضه حضوری"
-                        : "فقط کاتالوگ"}
+                  <span className="cig-model-number" dir="ltr">
+                    {String(index + 1).padStart(2, "0")} /{" "}
+                    {p.brand.toUpperCase()}
                   </span>
+                  <ProductImage product={p} />
+                  <span className="product-status">معرفی عرضه حضوری</span>
                   <span className="card-arrow">
-                    <ArrowUpLeft size={19} />
+                    <ArrowUpLeft size={20} />
                   </span>
                 </div>
                 <div className="product-meta">
@@ -253,66 +247,116 @@ export default function Storefront({
                   <span dir="ltr">{p.sku}</span>
                 </div>
                 <h3>{p.title}</h3>
-                <p className="product-spec">
-                  {p.material} <span> / </span> {p.dimensions}
-                </p>
+                <div className="pack-format-line">
+                  <span>{number(p.sticks_per_pack)} نخ / بسته</span>
+                  <span>{number(p.packs_per_carton)} بسته / باکس</span>
+                </div>
                 <div className="product-bottom">
                   <span>
-                    {p.price !== null ? money(p.price) : "مشاهده مشخصات"}
+                    {p.retail_available && p.wholesale_available
+                      ? "تکی و عمده"
+                      : p.wholesale_available
+                        ? "عمده"
+                        : p.retail_available
+                          ? "تکی"
+                          : "عرضه ثبت نشده"}
                   </span>
-                  <span>{p.stock > 0 ? "موجود" : "بدون موجودی ثبت‌شده"}</span>
+                  <span>
+                    {p.stock > 0 ? "موجودی ثبت‌شده" : "موجودی ثبت نشده"}
+                  </span>
                 </div>
               </Link>
             ))}
             {!products.length && (
               <div className="empty-state">
-                <Search size={28} />
-                <h3>کالایی با این مشخصات پیدا نشد</h3>
+                <Search size={27} />
+                <h3>مدلی با این مشخصات پیدا نشد.</h3>
                 <p>عبارت جست‌وجو یا فیلترها را تغییر دهید.</p>
-                <button
-                  className="button secondary"
-                  onClick={() => {
-                    setQuery("");
-                    setCategory("");
-                    setDevice("");
-                    setAvailable(false);
-                  }}
-                >
+                <button className="button secondary" onClick={clear}>
                   پاک کردن فیلترها
                 </button>
               </div>
             )}
           </div>
         )}
-        <div className="catalog-disclaimer">
-          <Check size={16} />
+        <div className="sample-note">
+          <span>داده نمایشی</span>
           <p>
-            کالاها و تصاویر فعلی نمونه نمایشی هستند؛ عرضه و خرید پس از ثبت
-            مشخصات واقعی و تأیید حقوقی فعال می‌شود.
+            تصاویر، مشخصات بسته و مدل‌های فعلی برای بررسی رابط هستند. موجودی و
+            اطلاعات واقعی فروشنده هنوز ثبت نشده‌اند.
           </p>
         </div>
       </section>
-      <section className="container editorial">
-        <div>
-          <div className="eyebrow">راهنمای نگهداری</div>
-          <h2>
-            عمر بیشتر،
-            <br />
-            با مراقبت درست.
-          </h2>
-          <p>
-            نظافت اصولی، بررسی اتصالات و نگهداری ابزار؛ نکته‌های کوچک برای
-            مراقبت بهتر از قطعات.
-          </p>
-          <Link href="/guide" className="text-link">
-            خواندن راهنما <ArrowLeft size={18} />
-          </Link>
-        </div>
-        <div className="editorial-art">
-          <ProductArt kind="brush" />
-          <span>CARE / KEEP / REPEAT</span>
+      <section className="wholesale-section" id="wholesale">
+        <div className="container wholesale-layout">
+          <Reveal>
+            <div className="eyebrow">برای فروشگاه‌ها و مراکز پخش</div>
+            <h2>
+              یک کاتالوگ.
+              <br />
+              دو مقیاس عرضه.
+            </h2>
+            <p>
+              مدل‌ها را به تفکیک بسته و باکس مرور کنید. اطلاعات همکاری و مراجعه
+              حضوری از مسیر شعب در دسترس قرار می‌گیرد.
+            </p>
+            <div className="wholesale-actions">
+              <a
+                className="button primary"
+                href="#catalog"
+                onClick={() => setMode("wholesale")}
+              >
+                مدل‌های عمده <ArrowUpLeft size={18} />
+              </a>
+              <Link className="text-link" href="/branches">
+                اطلاعات همکاری حضوری <ArrowLeft size={17} />
+              </Link>
+            </div>
+          </Reveal>
+          <div className="wholesale-visual" aria-hidden="true">
+            <div className="wholesale-box">
+              <PackBox tone="blue" format="carton" variant="BLUE" />
+            </div>
+            <div className="wholesale-pack">
+              <PackBox tone="blue" variant="BLUE" />
+            </div>
+            <span>PACK → CARTON</span>
+          </div>
         </div>
       </section>
+      <section className="container trade-details">
+        <Reveal>
+          <div className="trade-details-heading">
+            <div className="eyebrow">ساختار عرضه</div>
+            <h2>واحد هر مدل مشخص است.</h2>
+          </div>
+          <div className="trade-detail-grid">
+            <div>
+              <span>01</span>
+              <h3>بسته</h3>
+              <p>نمایش مدل و تعداد نخ در بسته، برای بررسی عرضه تکی حضوری.</p>
+            </div>
+            <div>
+              <span>02</span>
+              <h3>باکس</h3>
+              <p>
+                تعداد بسته در باکس و مسیر همکاری برای فروشگاه‌ها و مراکز پخش.
+              </p>
+            </div>
+            <div>
+              <span>03</span>
+              <h3>برند</h3>
+              <p>
+                وینستون، نقطه شروع کاتالوگ؛ افزودن برندهای بعدی از پنل مدیریت.
+              </p>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+      <div className="health-notice container">
+        مصرف دخانیات به سلامت آسیب می‌رساند. عرضه به افراد زیر ۱۸ سال مجاز نیست.
+        فروش اینترنتی سیگار در این سایت فعال نیست.
+      </div>
     </>
   );
 }

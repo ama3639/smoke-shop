@@ -4,7 +4,7 @@ test("RTL, local font, catalog and normalized search", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("سیگار");
-  await expect(page.locator(".product-card")).toHaveCount(6);
+  await expect(page.locator(".product-card")).toHaveCount(7);
   await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كامپكت");
   await expect(page.locator(".product-card")).toHaveCount(2);
   await page.evaluate(() => document.fonts.ready);
@@ -26,11 +26,11 @@ test("category, brand and retail/wholesale filters show relevant models", async 
   await expect(page.locator(".product-card")).toHaveCount(2);
   await page.getByRole("button", { name: "همه نوع‌ها", exact: true }).click();
   await page.getByRole("button", { name: "عمده / باکس", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(5);
+  await expect(page.locator(".product-card")).toHaveCount(6);
   await page.getByRole("button", { name: "تکی / بسته", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(5);
+  await expect(page.locator(".product-card")).toHaveCount(6);
   await page.getByLabel("فیلتر برند").selectOption("Winston");
-  await expect(page.locator(".product-card")).toHaveCount(5);
+  await expect(page.locator(".product-card")).toHaveCount(6);
 });
 
 test("catalog-only product cannot be purchased and missing product returns 404", async ({
@@ -102,73 +102,76 @@ test("empty cart and branches are honest and keyboard navigation works", async (
   });
 });
 
-test("scroll moves the packs and smoke and motion can be paused", async ({
+test("smoke follows scroll across the whole page and freezes when paused", async ({
   page,
 }) => {
   await page.goto("/");
+  const layer = page.locator(".homepage-smoke");
+  const video = layer.locator("video");
   const pack = page.locator(".scene-pack-main");
-  const smoke = page.locator(".smoke-cloud-near");
-  await expect
-    .poll(() =>
-      page
-        .locator(".smoke-cloud-near img")
-        .evaluate((el) => (el as HTMLImageElement).naturalWidth),
-    )
-    .toBe(1024);
-  await expect(page.locator(".scene-smoke")).toHaveAttribute(
-    "aria-hidden",
-    "true",
+  await expect(layer).toHaveAttribute("aria-hidden", "true");
+  expect(await layer.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe(
+    "none",
   );
-  expect(
-    await page
-      .locator(".scene-smoke")
-      .evaluate((el) => getComputedStyle(el).pointerEvents),
-  ).toBe("none");
-  const initial = await pack.evaluate((el) => getComputedStyle(el).transform);
-  const initialSmoke = await smoke.evaluate(
+  expect(await layer.evaluate((el) => getComputedStyle(el).position)).toBe(
+    "fixed",
+  );
+  await expect
+    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).duration))
+    .toBeGreaterThan(30);
+  const initialPack = await pack.evaluate(
     (el) => getComputedStyle(el).transform,
   );
   await page.evaluate(() => scrollTo(0, Math.round(innerHeight * 0.65)));
   await expect
-    .poll(() =>
-      page
-        .locator(".cigarette-hero")
-        .evaluate((el) =>
-          Number(getComputedStyle(el).getPropertyValue("--scene-progress")),
-        ),
-    )
-    .toBeGreaterThan(0.1);
-  const moved = await pack.evaluate((el) => getComputedStyle(el).transform);
-  expect(moved).not.toBe(initial);
-  expect(moved).toContain("matrix3d");
-  expect(await smoke.evaluate((el) => getComputedStyle(el).transform)).not.toBe(
-    initialSmoke,
-  );
+    .poll(() => pack.evaluate((el) => getComputedStyle(el).transform))
+    .not.toBe(initialPack);
+  await expect
+    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
+    .toBeGreaterThan(1);
+  await page.locator(".trade-details").scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
+    .toBeGreaterThan(20);
+  expect(await layer.evaluate((el) => el.getBoundingClientRect().top)).toBe(0);
+  await expect
+    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).readyState))
+    .toBeGreaterThanOrEqual(2);
   await page.getByRole("button", { name: "توقف حرکت" }).click();
+  await expect(layer).toHaveAttribute("data-motion", "paused");
+  await expect
+    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).seeking))
+    .toBe(false);
+  const pausedTime = await video.evaluate(
+    (el) => (el as HTMLVideoElement).currentTime,
+  );
+  await page.locator(".trade-details").scrollIntoViewIfNeeded();
+  await expect
+    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
+    .toBe(pausedTime);
   await expect(page.locator(".cigarette-hero")).toHaveClass(/scene-static/);
+  await page.getByRole("button", { name: "حرکت متوقف است" }).click();
+  await expect(layer).toHaveAttribute("data-motion", "scroll");
+  await page.locator(".trade-details").scrollIntoViewIfNeeded();
   await expect
-    .poll(() =>
-      page
-        .locator(".cigarette-hero")
-        .evaluate((el) =>
-          Number(getComputedStyle(el).getPropertyValue("--scene-progress")),
-        ),
-    )
-    .toBe(0);
-  await expect
-    .poll(() => smoke.evaluate((el) => getComputedStyle(el).transform))
-    .toBe(initialSmoke);
+    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
+    .toBeGreaterThan(20);
 });
 
-test("reduced motion preserves a static readable scene", async ({ page }) => {
+test("reduced motion uses a static smoke poster without downloading the film", async ({
+  page,
+}) => {
+  const filmRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/homepage-smoke\.(mp4|webm)/.test(request.url()))
+      filmRequests.push(request.url());
+  });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(page.locator(".cigarette-hero")).toHaveClass(/scene-static/);
-  expect(
-    await page
-      .locator(".hero-sticky")
-      .evaluate((el) => getComputedStyle(el).position),
-  ).toBe("relative");
+  await expect(page.locator(".homepage-smoke video")).toHaveCount(0);
+  await expect(page.locator(".homepage-smoke img")).toBeVisible();
+  expect(filmRequests).toEqual([]);
   await expect(
     page.getByRole("button", { name: "حرکت متوقف است" }),
   ).toBeDisabled();
@@ -182,7 +185,71 @@ test("reduced motion preserves a static readable scene", async ({ page }) => {
   ).toBe(0);
   expect(
     await page
-      .locator(".smoke-cloud-near")
+      .locator(".homepage-smoke img")
       .evaluate((el) => getComputedStyle(el).transform),
-  ).toBe("none");
+  ).not.toBe("none");
+});
+
+test("packet reveals a three-dimensional stick on hover or first touch", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/");
+  const card = page.locator('a.product-card[href="/products/winston-silver"]');
+  const stick = card.locator(".pack-cigarette");
+  await card.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() =>
+      card
+        .locator(".pack-front-photo")
+        .evaluate((el) => (el as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(1000);
+  await expect(stick.locator(".cigarette-facet")).toHaveCount(16);
+  const before = await stick.evaluate((el) => getComputedStyle(el).transform);
+  if (isMobile) {
+    await card.tap();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(card.getByRole("status")).toContainText("دوباره لمس کنید");
+  } else {
+    await card.hover();
+  }
+  await expect
+    .poll(() => stick.evaluate((el) => Number(getComputedStyle(el).opacity)))
+    .toBe(1);
+  await expect
+    .poll(() => stick.evaluate((el) => getComputedStyle(el).transform))
+    .not.toBe(before);
+  expect(
+    await stick.evaluate((el) => getComputedStyle(el).transform),
+  ).toContain("matrix3d");
+  await page.screenshot({
+    path: `test-results/packet-preview-${test.info().project.name}.png`,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  if (isMobile) await card.tap();
+  else await card.click();
+  await expect(page).toHaveURL(/\/products\/winston-silver$/);
+});
+
+test("keyboard selection reveals the packet and Enter opens details immediately", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const card = page.locator('a.product-card[href="/products/winston-silver"]');
+  await card.focus();
+  await expect(card).toBeFocused();
+  await expect
+    .poll(() =>
+      card
+        .locator(".pack-cigarette")
+        .evaluate((el) => Number(getComputedStyle(el).opacity)),
+    )
+    .toBe(1);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/products\/winston-silver$/);
 });

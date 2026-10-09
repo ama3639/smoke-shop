@@ -16,6 +16,7 @@ import ProductImage from "./product-image";
 import MotionScene from "./motion-scene";
 import Reveal from "./reveal";
 import { PackBox } from "./pack-3d";
+import HomepageSmoke from "./homepage-smoke";
 
 type Mode = "all" | "retail" | "wholesale";
 export default function Storefront({
@@ -28,6 +29,18 @@ export default function Storefront({
   unavailable: boolean;
 }) {
   const [products, setProducts] = useState(initialProducts);
+  const [paused, setPaused] = useState(false);
+  // Render the poster until the device's motion preference is known.
+  const [reduced, setReduced] = useState(true);
+  const [preview, setPreview] = useState<number | null>(null);
+  const pointerType = useRef("");
+  useEffect(() => {
+    const preference = matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(preference.matches);
+    update();
+    preference.addEventListener("change", update);
+    return () => preference.removeEventListener("change", update);
+  }, []);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [brand, setBrand] = useState("");
@@ -88,8 +101,16 @@ export default function Storefront({
   }
 
   return (
-    <>
-      <MotionScene onMode={setMode} />
+    <div
+      className={`homepage-shell ${paused || reduced ? "motion-paused" : ""}`}
+    >
+      <HomepageSmoke disabled={paused || reduced} reduced={reduced} />
+      <MotionScene
+        onMode={setMode}
+        paused={paused}
+        reduced={reduced}
+        onPause={() => setPaused((v) => !v)}
+      />
       <div className="brand-strip">
         <div className="container brand-strip-inner">
           <span>BRAND / 01</span>
@@ -227,9 +248,23 @@ export default function Storefront({
           >
             {products.map((p, index) => (
               <Link
-                className="product-card"
+                className={`product-card ${preview === p.id ? "is-selected" : ""}`}
                 key={p.id}
                 href={`/products/${p.slug}`}
+                onPointerDown={(e) => {
+                  pointerType.current = e.pointerType;
+                }}
+                onBlur={() => setPreview(null)}
+                onClick={(e) => {
+                  if (
+                    e.detail !== 0 &&
+                    pointerType.current === "touch" &&
+                    preview !== p.id
+                  ) {
+                    e.preventDefault();
+                    setPreview(p.id);
+                  }
+                }}
               >
                 <div className="product-image">
                   <span className="cig-model-number" dir="ltr">
@@ -238,10 +273,22 @@ export default function Storefront({
                   </span>
                   <ProductImage product={p} />
                   <span className="product-status">معرفی عرضه حضوری</span>
+                  <span className="product-photo-note">
+                    {p.image
+                      ? "تصویر کالا"
+                      : p.slug === "winston-silver"
+                        ? "تصویر مرجع سیلور"
+                        : "عکس واقعی ثبت نشده"}
+                  </span>
                   <span className="card-arrow">
                     <ArrowUpLeft size={20} />
                   </span>
                 </div>
+                {preview === p.id && (
+                  <span className="product-preview-note" role="status">
+                    برای مشخصات، دوباره لمس کنید
+                  </span>
+                )}
                 <div className="product-meta">
                   <span>{p.category_title}</span>
                   <span dir="ltr">{p.sku}</span>
@@ -357,6 +404,6 @@ export default function Storefront({
         مصرف دخانیات به سلامت آسیب می‌رساند. عرضه به افراد زیر ۱۸ سال مجاز نیست.
         فروش اینترنتی سیگار در این سایت فعال نیست.
       </div>
-    </>
+    </div>
   );
 }

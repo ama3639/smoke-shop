@@ -1456,58 +1456,6 @@ nav a {
   );
   opacity: 0.3;
 }
-.scene-smoke {
-  position: absolute;
-  pointer-events: none;
-  user-select: none;
-  left: -4%;
-  bottom: -18%;
-  width: 65%;
-  height: 136%;
-  opacity: 0.72;
-  overflow: hidden;
-  /* Feather the edges while keeping the smoke behind the product scene. */
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    #000 15%,
-    #000 78%,
-    transparent
-  );
-}
-.scene-smoke img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.smoke-cloud {
-  position: absolute;
-  inset: 0;
-  transform-origin: 55% 86%;
-  will-change: transform;
-}
-.smoke-cloud-far {
-  opacity: 0.22;
-  transform: translate(
-      calc(var(--scene-progress) * -42px),
-      calc(var(--scene-progress) * -82px)
-    )
-    rotate(calc(-7deg + var(--scene-progress) * -9deg))
-    scale(calc(1 + var(--scene-progress) * 0.15));
-}
-.smoke-cloud-near {
-  opacity: 0.78;
-  transform: translate(
-      calc(var(--scene-progress) * 50px),
-      calc(var(--scene-progress) * -145px)
-    )
-    rotate(calc(4deg + var(--scene-progress) * 12deg))
-    scale(calc(0.9 + var(--scene-progress) * 0.23));
-}
-.scene-static .smoke-cloud {
-  will-change: auto;
-}
 .scene-layout {
   position: relative;
   height: 100%;
@@ -1992,9 +1940,10 @@ nav a {
   display: none;
 }
 .catalog-pack-art {
-  height: 305px;
+  height: 345px;
   display: grid;
-  place-items: center;
+  place-items: end center;
+  padding-bottom: 30px;
   perspective: 950px;
   overflow: hidden;
 }
@@ -2384,23 +2333,6 @@ nav a {
     height: 155svh;
     min-height: 1180px;
   }
-  .scene-smoke {
-    left: -18%;
-    bottom: -18%;
-    width: 124%;
-    height: 108%;
-    opacity: 0.48;
-    mask-image: linear-gradient(
-      to bottom,
-      transparent,
-      #000 43%,
-      #000 85%,
-      transparent
-    );
-  }
-  .smoke-cloud-far {
-    display: none;
-  }
   .hero-sticky {
     top: 74px;
     height: calc(100svh - 74px);
@@ -2670,7 +2602,7 @@ nav a {
     min-height: 225px;
   }
   .catalog-pack-art {
-    height: 225px;
+    height: 260px;
   }
   .catalog-pack-art .pack-box {
     --pack-width: 91px;
@@ -2865,6 +2797,151 @@ nav a {
     height: 22px;
   }
 }
+
+/* One fixed, scroll-scrubbed smoke film follows the entire homepage. */
+.homepage-smoke {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  opacity: 0.2;
+  overflow: hidden;
+}
+.homepage-smoke video,
+.homepage-smoke img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1);
+  transform: translateY(calc(5% - var(--page-progress, 0) * 10%)) scale(1.12);
+}
+.pack-front-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+.photo-pack:not(.carton-box) .pack-front-photo {
+  clip-path: inset(26% 0 0 0);
+}
+.pack-lid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--pack-width);
+  height: calc(var(--pack-height) * 0.26);
+  overflow: hidden;
+  transform: translateZ(calc(var(--pack-depth) / 2));
+  transform-origin: center bottom;
+  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  backface-visibility: hidden;
+}
+.pack-lid img {
+  width: var(--pack-width);
+  height: var(--pack-height);
+  display: block;
+}
+.pack-cigarette {
+  --stick-diameter: calc(var(--pack-width) * 0.075);
+  position: absolute;
+  left: 61%;
+  top: 4%;
+  width: var(--stick-diameter);
+  height: calc(var(--pack-height) * 0.8);
+  transform-style: preserve-3d;
+  transform: translate3d(0, calc(var(--pack-height) * 0.14), 0);
+  opacity: 0;
+  transition:
+    transform 650ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+}
+.cigarette-facet {
+  position: absolute;
+  height: 100%;
+  width: calc(var(--stick-diameter) * 0.199);
+  left: 50%;
+  margin-left: calc(var(--stick-diameter) * -0.0995);
+  background: linear-gradient(90deg, #ddd9cf, #fffdf5);
+  filter: brightness(var(--facet-shade));
+  transform: rotateY(var(--facet-angle))
+    translateZ(calc(var(--stick-diameter) / 2));
+  backface-visibility: hidden;
+}
+.cigarette-facet i {
+  display: block;
+  height: 34%;
+  background:
+    radial-gradient(#7e4e31 0.6px, transparent 0.8px) 0 0 / 3px 4px,
+    linear-gradient(#c99c65, #d7b27c);
+  border-bottom: 1px solid #a6845d;
+}
+.cigarette-filter-end,
+.cigarette-tobacco-end {
+  position: absolute;
+  width: var(--stick-diameter);
+  height: var(--stick-diameter);
+  border-radius: 50%;
+  transform: rotateX(90deg);
+}
+.cigarette-filter-end {
+  top: calc(var(--stick-diameter) / -2);
+  background: radial-gradient(circle, #f3e6d1, #b6a78f);
+}
+.cigarette-tobacco-end {
+  bottom: calc(var(--stick-diameter) / -2);
+  background: radial-gradient(#a97947 1px, #493323 1.5px) 0 0 / 3px 3px;
+}
+.product-card:is(:focus-visible, .is-selected) .pack-cigarette {
+  opacity: 1;
+  transform: translate3d(-3px, calc(var(--pack-height) * -0.48), 8px)
+    rotateZ(-9deg);
+}
+.product-card:is(:focus-visible, .is-selected) .pack-lid {
+  transform: translateZ(calc(var(--pack-depth) / 2)) rotateX(-65deg);
+}
+.product-card:is(:focus-visible, .is-selected) .pack-box {
+  transform: rotateY(-8deg) rotateX(2deg) rotateZ(-2deg);
+}
+.product-photo-note {
+  position: absolute;
+  top: 38px;
+  left: 17px;
+  font-size: 8px;
+  color: #766d5d;
+}
+.product-preview-note {
+  display: block;
+  margin-top: 6px;
+  padding: 7px;
+  background: #25251de8;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 10px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .product-card:hover .pack-cigarette {
+    opacity: 1;
+    transform: translate3d(-3px, calc(var(--pack-height) * -0.48), 8px)
+      rotateZ(-9deg);
+  }
+  .product-card:hover .pack-lid {
+    transform: translateZ(calc(var(--pack-depth) / 2)) rotateX(-65deg);
+  }
+}
+.motion-paused .pack-cigarette,
+.motion-paused .pack-lid,
+.motion-paused .pack-box {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pack-cigarette,
+  .pack-lid,
+  .pack-box {
+    transition: none;
+  }
+}
 @media (max-width: 370px) {
   .cigarette-hero h1 {
     font-size: 36px;
@@ -2902,9 +2979,5 @@ nav a {
   }
   .catalog-pack-art .pack-box {
     transition: none;
-  }
-  .smoke-cloud {
-    transform: none;
-    will-change: auto;
   }
 }

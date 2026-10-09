@@ -198,7 +198,7 @@ class ShopTests(TestCase):
     def test_sample_seed_is_repeatable_and_never_enables_sales(self):
         for _ in range(2):
             call_command('seed_demo', stdout=io.StringIO())
-        self.assertEqual(Product.objects.filter(sku__startswith='DEMO-').count(), 6)
+        self.assertEqual(Product.objects.filter(sku__startswith='DEMO-').count(), 7)
         self.assertFalse(Product.objects.filter(sku__startswith='DEMO-', legal_status='APPROVED_ONLINE').exists())
         self.assertFalse(Category.objects.get(slug='regular').online_enabled)
 
@@ -214,12 +214,12 @@ class ShopTests(TestCase):
         call_command('seed_demo', stdout=io.StringIO())
         endpoint = '/api/v1/catalog/products/'
         all_cigarettes = self.client.get(endpoint, {'type': 'cigarette'}).json()['data']
-        self.assertEqual(len(all_cigarettes), 6)
+        self.assertEqual(len(all_cigarettes), 7)
         self.assertTrue(all(p['brand'] == 'Winston' and not p['purchasable'] for p in all_cigarettes))
-        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'wholesale'}).json()['data']), 5)
-        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'retail'}).json()['data']), 5)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'wholesale'}).json()['data']), 6)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'retail'}).json()['data']), 6)
         self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'q': 'كامپكت'}).json()['data']), 2)
-        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'brand': 'Winston'}).json()['data']), 6)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'brand': 'Winston'}).json()['data']), 7)
         categories = self.client.get('/api/v1/catalog/', {'type': 'cigarette'}).json()['data']['categories']
         self.assertEqual({c['slug'] for c in categories}, {'regular', 'slim', 'compact'})
 

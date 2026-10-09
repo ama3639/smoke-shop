@@ -1,25 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ArrowDown, ArrowUpLeft, Pause, Play } from "lucide-react";
 import { PackBox } from "./pack-3d";
-import SmokePlume from "./smoke-plume";
 
 export default function MotionScene({
   onMode,
+  paused,
+  reduced,
+  onPause,
 }: {
   onMode: (mode: "retail" | "wholesale") => void;
+  paused: boolean;
+  reduced: boolean;
+  onPause: () => void;
 }) {
   const scene = useRef<HTMLElement>(null);
-  const [paused, setPaused] = useState(false);
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const preference = matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(preference.matches);
-    update();
-    preference.addEventListener("change", update);
-    return () => preference.removeEventListener("change", update);
-  }, []);
   useEffect(() => {
     const element = scene.current;
     if (!element) return;
@@ -61,7 +57,6 @@ export default function MotionScene({
           Winston
         </div>
         <div className="scene-grain" aria-hidden="true" />
-        <SmokePlume />
         <div className="container scene-layout">
           <div className="cigarette-hero-copy">
             <div className="scene-eyebrow">
@@ -112,7 +107,11 @@ export default function MotionScene({
               <PackBox tone="blue" variant="BLUE" />
             </div>
             <div className="scene-pack scene-pack-main">
-              <PackBox tone="red" variant="RED" />
+              <PackBox
+                tone="silver"
+                variant="SILVER"
+                frontImage="/images/winston-silver-reference.webp"
+              />
             </div>
             <div className="scene-carton">
               <PackBox tone="blue" format="carton" variant="BLUE" />
@@ -139,7 +138,7 @@ export default function MotionScene({
           <button
             className="motion-toggle"
             aria-pressed={paused || reduced}
-            onClick={() => setPaused((v) => !v)}
+            onClick={onPause}
             disabled={reduced}
           >
             {paused || reduced ? <Play size={14} /> : <Pause size={14} />}

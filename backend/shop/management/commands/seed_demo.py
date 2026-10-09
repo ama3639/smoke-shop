@@ -18,6 +18,7 @@ class Command(BaseCommand):
             ('winston-xs-silver', 'وینستون XS سیلور', 'slim', 'Winston', True, False),
             ('winston-compact-blue', 'وینستون کامپکت آبی', 'compact', 'Winston', True, True),
             ('winston-compact-silver', 'وینستون کامپکت سیلور', 'compact', 'Winston', False, True),
+            ('winston-silver', 'وینستون سیلور', 'regular', 'Winston', True, True),
         ]
         for index, (slug, title, category, brand, retail, wholesale) in enumerate(samples):
             product, _ = Product.objects.get_or_create(slug=slug, defaults={

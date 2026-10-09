@@ -3,7 +3,7 @@ import { ProductArt } from "./product-art";
 import { PackBox } from "./pack-3d";
 
 export default function ProductImage({ product }: { product: Product }) {
-  return product.image ? (
+  return product.image && product.product_type !== "cigarette" ? (
     <img
       className="real-product-image"
       src={product.image}
@@ -15,6 +15,12 @@ export default function ProductImage({ product }: { product: Product }) {
   ) : product.product_type === "cigarette" ? (
     <div className="catalog-pack-art" aria-hidden="true">
       <PackBox
+        frontImage={
+          product.image ||
+          (product.slug === "winston-silver"
+            ? "/images/winston-silver-reference.webp"
+            : undefined)
+        }
         brand={product.brand || "CATALOG"}
         format={product.illustration === "carton" ? "carton" : "pack"}
         tone={

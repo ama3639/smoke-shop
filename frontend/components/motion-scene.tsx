@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUpLeft, Pause, Play } from "lucide-react";
 import { PackBox } from "./pack-3d";
+import SmokePlume from "./smoke-plume";
 
 export default function MotionScene({
   onMode,
@@ -60,6 +61,7 @@ export default function MotionScene({
           Winston
         </div>
         <div className="scene-grain" aria-hidden="true" />
+        <SmokePlume />
         <div className="container scene-layout">
           <div className="cigarette-hero-copy">
             <div className="scene-eyebrow">

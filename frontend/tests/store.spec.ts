@@ -102,12 +102,32 @@ test("empty cart and branches are honest and keyboard navigation works", async (
   });
 });
 
-test("scroll changes the 3D scene and motion can be paused", async ({
+test("scroll moves the packs and smoke and motion can be paused", async ({
   page,
 }) => {
   await page.goto("/");
   const pack = page.locator(".scene-pack-main");
+  const smoke = page.locator(".smoke-cloud-near");
+  await expect
+    .poll(() =>
+      page
+        .locator(".smoke-cloud-near img")
+        .evaluate((el) => (el as HTMLImageElement).naturalWidth),
+    )
+    .toBe(1024);
+  await expect(page.locator(".scene-smoke")).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
+  expect(
+    await page
+      .locator(".scene-smoke")
+      .evaluate((el) => getComputedStyle(el).pointerEvents),
+  ).toBe("none");
   const initial = await pack.evaluate((el) => getComputedStyle(el).transform);
+  const initialSmoke = await smoke.evaluate(
+    (el) => getComputedStyle(el).transform,
+  );
   await page.evaluate(() => scrollTo(0, Math.round(innerHeight * 0.65)));
   await expect
     .poll(() =>
@@ -121,6 +141,9 @@ test("scroll changes the 3D scene and motion can be paused", async ({
   const moved = await pack.evaluate((el) => getComputedStyle(el).transform);
   expect(moved).not.toBe(initial);
   expect(moved).toContain("matrix3d");
+  expect(await smoke.evaluate((el) => getComputedStyle(el).transform)).not.toBe(
+    initialSmoke,
+  );
   await page.getByRole("button", { name: "توقف حرکت" }).click();
   await expect(page.locator(".cigarette-hero")).toHaveClass(/scene-static/);
   await expect
@@ -132,6 +155,9 @@ test("scroll changes the 3D scene and motion can be paused", async ({
         ),
     )
     .toBe(0);
+  await expect
+    .poll(() => smoke.evaluate((el) => getComputedStyle(el).transform))
+    .toBe(initialSmoke);
 });
 
 test("reduced motion preserves a static readable scene", async ({ page }) => {
@@ -154,4 +180,9 @@ test("reduced motion preserves a static readable scene", async ({ page }) => {
         Number(getComputedStyle(el).getPropertyValue("--scene-progress")),
       ),
   ).toBe(0);
+  expect(
+    await page
+      .locator(".smoke-cloud-near")
+      .evaluate((el) => getComputedStyle(el).transform),
+  ).toBe("none");
 });

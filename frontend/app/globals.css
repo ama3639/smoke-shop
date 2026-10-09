@@ -1456,6 +1456,58 @@ nav a {
   );
   opacity: 0.3;
 }
+.scene-smoke {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  left: -4%;
+  bottom: -18%;
+  width: 65%;
+  height: 136%;
+  opacity: 0.72;
+  overflow: hidden;
+  /* Feather the edges while keeping the smoke behind the product scene. */
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 15%,
+    #000 78%,
+    transparent
+  );
+}
+.scene-smoke img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.smoke-cloud {
+  position: absolute;
+  inset: 0;
+  transform-origin: 55% 86%;
+  will-change: transform;
+}
+.smoke-cloud-far {
+  opacity: 0.22;
+  transform: translate(
+      calc(var(--scene-progress) * -42px),
+      calc(var(--scene-progress) * -82px)
+    )
+    rotate(calc(-7deg + var(--scene-progress) * -9deg))
+    scale(calc(1 + var(--scene-progress) * 0.15));
+}
+.smoke-cloud-near {
+  opacity: 0.78;
+  transform: translate(
+      calc(var(--scene-progress) * 50px),
+      calc(var(--scene-progress) * -145px)
+    )
+    rotate(calc(4deg + var(--scene-progress) * 12deg))
+    scale(calc(0.9 + var(--scene-progress) * 0.23));
+}
+.scene-static .smoke-cloud {
+  will-change: auto;
+}
 .scene-layout {
   position: relative;
   height: 100%;
@@ -2332,6 +2384,23 @@ nav a {
     height: 155svh;
     min-height: 1180px;
   }
+  .scene-smoke {
+    left: -18%;
+    bottom: -18%;
+    width: 124%;
+    height: 108%;
+    opacity: 0.48;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 43%,
+      #000 85%,
+      transparent
+    );
+  }
+  .smoke-cloud-far {
+    display: none;
+  }
   .hero-sticky {
     top: 74px;
     height: calc(100svh - 74px);
@@ -2464,7 +2533,7 @@ nav a {
   .scene-carton {
     left: 19%;
     top: 70%;
-    transform: translate3d(0, calc(var(--scene-progress) * -15px), 20px)
+    transform: translate3d(0, calc(var(--scene-progress) * -15px), 120px)
       rotateX(12deg) rotateY(-20deg) rotateZ(-5deg);
   }
   .scene-carton .carton-box {
@@ -2833,5 +2902,9 @@ nav a {
   }
   .catalog-pack-art .pack-box {
     transition: none;
+  }
+  .smoke-cloud {
+    transform: none;
+    will-change: auto;
   }
 }

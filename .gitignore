@@ -11,6 +11,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!frontend/lib/
+!frontend/lib/**
 lib64/
 parts/
 sdist/
@@ -95,3 +97,9 @@ logs/
 *.tmp
 *.bak
 *.orig
+backend/.local-secret
+*.tsbuildinfo
+frontend/playwright-report/
+frontend/test-results/
+frontend/.next-e2e/
+frontend/next-env.d.ts

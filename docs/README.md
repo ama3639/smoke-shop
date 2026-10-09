@@ -1,7 +1,7 @@
 # docs/README.md — فهرست و نقشه مستندات
 
-> **نسخه:** 0.1.0  
-> **تاریخ:** 2026-10-08  
+> **نسخه:** 0.2.0
+> **تاریخ:** 2026-10-09
 > **به‌روزرسانی شود:** با افزودن یا حذف هر سند
 
 ---
@@ -67,6 +67,10 @@ smokeshop/
 
 ---
 
+## راهنمای اجرایی موجود
+
+- [LOCAL_SETUP](deployment/LOCAL_SETUP.md) — نصب Windows/Linux، مدیریت کالا، تست، backup و محدودیت‌های تولید.
+
 ## مستندات برنامه‌ریزی‌شده (آینده)
 
 این مستندات در فازهای بعدی اضافه می‌شوند:
@@ -87,7 +91,6 @@ smokeshop/
 - `docs/api/ADMIN_API.md` — مستندات API پنل مدیریتی
 
 ### راهنماهای استقرار (فاز یک)
-- `docs/deployment/LOCAL_SETUP.md` — راه‌اندازی محلی تفصیلی
 - `docs/deployment/STAGING.md` — محیط Staging
 - `docs/deployment/PRODUCTION.md` — راهنمای Production
 - `docs/deployment/BACKUP_RECOVERY.md` — پشتیبان‌گیری و بازیابی

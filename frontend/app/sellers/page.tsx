@@ -14,7 +14,7 @@ export default async function Sellers() {
       {vendors.map(v => <article className="branch-card" key={v.slug}>
         <h2>{v.title}</h2><p>{v.description}</p><p>{v.city}</p><p>{v.address}</p>
         {v.phone && <a href={`tel:${v.phone}`} dir="ltr">{v.phone}</a>}
-        <p><Link href={`/?vendor=${encodeURIComponent(v.slug)}#catalog`}>مشاهده کالاهای فروشنده</Link></p>
+        <p><Link href={`/catalog?vendor=${encodeURIComponent(v.slug)}`}>مشاهده کالاهای فروشنده</Link></p>
       </article>)}
     </div> : <p>هنوز فروشنده تأییدشده‌ای ثبت نشده است.</p>}
   </section>;

@@ -14,8 +14,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
     : "/images/products/winston/optimized/12.webp";
   try {
     const [products, catalog] = await Promise.all([
-      serverApi<ProductPage>(`catalog/products/?pagination=1&page_size=24&vendor=${encodeURIComponent(vendor)}`),
-      serverApi<Catalog>("catalog/"),
+      serverApi<ProductPage>(`catalog/products/?type=cigarette&pagination=1&page_size=24&vendor=${encodeURIComponent(vendor)}`),
+      serverApi<Catalog>("catalog/?type=cigarette"),
     ]);
     return (
       <Storefront

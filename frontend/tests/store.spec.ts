@@ -41,7 +41,7 @@ test("RTL, local font, catalog and normalized search", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("کاتالوگ");
-  await expect(page.locator(".product-card")).toHaveCount(15);
+  await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كامپكت");
   await expect(page.locator(".product-card")).toHaveCount(2);
   await page.evaluate(() => document.fonts.ready);
@@ -65,7 +65,7 @@ test("category, brand and retail/wholesale filters show relevant models", async 
   await page.getByRole("button", { name: "عمده / باکس", exact: true }).click();
   await expect(page.locator(".product-card")).toHaveCount(13);
   await page.getByRole("button", { name: "تکی / بسته", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(14);
+  await expect(page.locator(".product-card")).toHaveCount(13);
   await page.getByLabel("فیلتر برند").selectOption("Winston");
   await expect(page.locator(".product-card")).toHaveCount(13);
 });
@@ -139,32 +139,47 @@ test("empty cart and branches are honest and keyboard navigation works", async (
   });
 });
 
-test("hero motion stays local, does not load smoke films, and can be paused", async ({ page }) => {
+test("real smoke plays only inside the hero, pauses manually and when offscreen", async ({ page }) => {
+  await page.goto("/");
+  const smoke = page.locator(".hero-smoke");
+  const video = smoke.locator("video");
+  await expect(smoke).toHaveAttribute("data-motion", "ambient");
+  await expect.poll(() => video.evaluate(el => (el as HTMLVideoElement).currentTime)).toBeGreaterThan(0.1);
+  expect(await video.evaluate(el => (el as HTMLVideoElement).muted)).toBeTruthy();
+  expect(await smoke.evaluate(el => getComputedStyle(el).pointerEvents)).toBe("none");
+  expect(await smoke.evaluate(el => getComputedStyle(el).position)).toBe("absolute");
+  expect(await page.locator(".cigarette-hero").evaluate(el => getComputedStyle(el).filter)).toBe("none");
+  expect(await page.locator(".cigarette-hero-copy").evaluate(el => getComputedStyle(el).filter)).toBe("none");
+  expect(await video.evaluate(el => getComputedStyle(el).filter)).not.toContain("blur");
+  if (process.env.VISUAL_REVIEW_PATH) {
+    await video.evaluate(el => new Promise<void>(resolve => {
+      el.addEventListener("seeked", () => resolve(), {once: true});
+      (el as HTMLVideoElement).currentTime = 12;
+    }));
+    await page.screenshot({path: `${process.env.VISUAL_REVIEW_PATH}/smoke-${test.info().project.name}.png`});
+  }
+  await page.getByRole("button", { name: "توقف حرکت" }).click();
+  await expect.poll(() => video.evaluate(el => (el as HTMLVideoElement).paused)).toBeTruthy();
+  await expect(smoke).toHaveAttribute("data-motion", "paused");
+  await page.getByRole("button", { name: "حرکت متوقف است" }).click();
+  await expect.poll(() => video.evaluate(el => (el as HTMLVideoElement).paused)).toBeFalsy();
+  await page.locator(".catalog-heading").evaluate(el => el.scrollIntoView({block: "start"}));
+  await expect.poll(() => video.evaluate(el => (el as HTMLVideoElement).paused)).toBeTruthy();
+});
+
+test("reduced motion keeps the hero static and does not load smoke media", async ({ page }) => {
   const films: string[] = [];
   page.on("request", r => { if (/homepage-smoke\.(mp4|webm)/.test(r.url())) films.push(r.url()); });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.locator(".homepage-smoke, .homepage-smoke video")).toHaveCount(0);
-  const atmosphere = page.locator(".hero-atmosphere");
-  await expect(atmosphere).toHaveAttribute("data-motion", "ambient");
-  expect(await atmosphere.evaluate(el => getComputedStyle(el).pointerEvents)).toBe("none");
-  expect(await atmosphere.evaluate(el => getComputedStyle(el).position)).toBe("absolute");
-  await page.getByRole("button", { name: "توقف حرکت" }).click();
-  await expect(atmosphere).toHaveAttribute("data-motion", "paused");
-  expect(await atmosphere.locator("svg").evaluate(el => getComputedStyle(el).animationPlayState)).toBe("paused");
+  await expect(page.locator(".hero-smoke")).toHaveAttribute("data-motion", "paused");
+  await expect(page.getByRole("button", { name: "حرکت متوقف است" })).toBeDisabled();
+  await expect(page.locator("video")).toHaveCount(0);
   expect(films).toEqual([]);
 });
 
-test("reduced motion keeps the hero static without a film or blur overlay", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  await expect(page.locator(".hero-atmosphere")).toHaveAttribute("data-motion", "paused");
-  await expect(page.getByRole("button", { name: "حرکت متوقف است" })).toBeDisabled();
-  expect(await page.locator(".hero-atmosphere svg").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
-  await expect(page.locator(".homepage-smoke, video")).toHaveCount(0);
-});
-
 test("all product types, seller directory and seller selection work", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/catalog");
   await page.getByRole("button", { name: "اکسسوری", exact: true }).click();
   await expect(page.locator(".product-card")).toHaveCount(1);
   await page.getByRole("button", { name: "همه کالاها", exact: true }).click();
@@ -240,7 +255,7 @@ test("responsive hero and catalog stay readable at narrow, tablet and wide width
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    await expect(page.locator(".product-card")).toHaveCount(15);
+    await expect(page.locator(".product-card")).toHaveCount(14);
     await expect(page.getByRole("navigation", {name: "منوی اصلی"})).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
@@ -263,4 +278,27 @@ test("responsive hero and catalog stay readable at narrow, tablet and wide width
       await page.screenshot({path: `${process.env.VISUAL_REVIEW_PATH}/catalog-${width}.png`});
     }
   }
+});
+
+
+test("accessories move off the homepage and remain available in the full catalog", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('a.product-card[href="/products/e2e-approved"]')).toHaveCount(0);
+  await expect(page.locator(".product-card")).toHaveCount(14);
+  await page.getByRole("link", { name: "اکسسوری و ملزومات" }).click();
+  await expect(page).toHaveURL(/\/catalog\?type=accessory$/);
+  await expect(page.locator(".product-card")).toHaveCount(1);
+  await expect(page.locator('a.product-card[href="/products/e2e-approved"]')).toBeVisible();
+  await expect(page.locator(".cigarette-hero, .hero-smoke, video")).toHaveCount(0);
+  if (process.env.VISUAL_REVIEW_PATH) {
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({path: `${process.env.VISUAL_REVIEW_PATH}/accessories-${test.info().project.name}.png`});
+  }
+  await page.getByRole("button", {name: "همه کالاها", exact: true}).click();
+  await expect(page.locator(".product-card")).toHaveCount(15);
+  await page.getByLabel("جست‌وجوی کالا").fill("does-not-exist");
+  await expect(page.locator(".product-card")).toHaveCount(0);
+  await page.getByRole("button", {name: "پاک کردن فیلترها"}).click();
+  await expect(page.locator(".product-card")).toHaveCount(15);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });

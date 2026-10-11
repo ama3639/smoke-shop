@@ -2643,11 +2643,13 @@ nav a {
 .scene-hero-image { width: 53%; object-position: center; mix-blend-mode: multiply; }
 .scene-bottom { z-index: 4; }
 .scene-progress { display: none; }
-.hero-atmosphere { position: absolute; inset: 0 auto 0 0; width: 60%; overflow: hidden; pointer-events: none; z-index: 0; }
-.hero-atmosphere svg { width: 100%; height: 100%; stroke: #b99b7c; stroke-width: .7; opacity: .24; animation: ambient-drift 18s ease-in-out infinite alternate; }
-.hero-atmosphere circle { stroke-dasharray: 2 12; stroke-width: 1.2; }
-.hero-atmosphere[data-motion="paused"] svg { animation-play-state: paused; }
-@keyframes ambient-drift { from { transform: translate(-10px, 6px) rotate(-3deg); } to { transform: translate(12px, -8px) rotate(3deg); } }
+.hero-smoke { position: absolute; inset: 0 auto 0 0; width: 56%; overflow: hidden; pointer-events: none; z-index: 2; transform: translateY(calc(var(--scene-progress) * -18px)); mix-blend-mode: multiply; mask-image: radial-gradient(ellipse at 50% 52%, #000 18%, transparent 72%); }
+.hero-smoke video { display: block; width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) invert(1) contrast(1.35); opacity: .28; }
+.catalog-page .cigarette-catalog { padding-top: 54px; }
+.catalog-heading h1 { font-size: clamp(34px, 4vw, 56px); font-weight: 500; line-height: 1.5; }
+.catalog-heading h1 span { color: var(--copper); }
+.catalog-route-links { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+.catalog-route-links a { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; padding: 12px 18px; border: 1px solid var(--line); border-radius: 24px; }
 .catalog-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px; }
 .catalog-kinds button { padding: 10px 18px; border: 1px solid var(--line); border-radius: 24px; color: var(--muted); background: transparent; transition: background .2s, color .2s; }
 .catalog-kinds button.active { background: var(--ink); border-color: var(--ink); color: white; }
@@ -2690,7 +2692,8 @@ nav a {
   .cigarette-hero-copy > p { max-width: 100%; }
   .scene-hero-visual { inset: 0; }
   .scene-hero-image { top: auto; bottom: 58px; left: 50%; transform: translateX(-50%); width: min(90%, 440px); height: auto; }
-  .hero-atmosphere { width: 100%; top: 36%; }
+  .hero-smoke { inset: auto auto 58px 50%; width: min(90%, 440px); height: min(90vw, 440px); transform: translateX(-50%); }
+  .hero-smoke video { opacity: .24; }
   .scene-bottom { bottom: 15px; }
   .brand-strip-inner > strong { font-size: 24px; }
   .filter-row > span { display: none; }
@@ -2705,6 +2708,6 @@ nav a {
   .header nav a { white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-atmosphere svg { animation: none; }
+  .hero-smoke { visibility: hidden; }
   .product-card { transition: none; transform: none; }
 }

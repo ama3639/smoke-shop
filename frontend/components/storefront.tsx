@@ -23,22 +23,28 @@ export default function Storefront({
   initialVendor,
   catalog: initialCatalog,
   unavailable,
-  heroImage,
+  heroImage = "",
+  home = true,
+  initialType = "",
+  initialMode = "all",
 }: {
   initialPage: ProductPage;
   initialVendor: string;
   catalog: Catalog;
   unavailable: boolean;
-  heroImage: string;
+  heroImage?: string;
+  home?: boolean;
+  initialType?: string;
+  initialMode?: Mode;
 }) {
   const [pageData, setPageData] = useState(initialPage);
   const [catalog, setCatalog] = useState(initialCatalog);
   const products = pageData.items;
   const [page, setPage] = useState(1);
-  const [kind, setKind] = useState("");
+  const [kind, setKind] = useState(home ? "cigarette" : initialType);
   const [vendor, setVendor] = useState(initialVendor);
   const [paused, setPaused] = useState(false);
-  // Render the poster until the device's motion preference is known.
+  // Keep motion media unloaded until the device's preference is known.
   const [reduced, setReduced] = useState(true);
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: reduce)");
@@ -50,16 +56,16 @@ export default function Storefront({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [brand, setBrand] = useState("");
-  const [mode, setMode] = useState<Mode>("all");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     if (!retry) return;
     const controller = new AbortController();
-    api<Catalog>("catalog/", { signal: controller.signal }).then(setCatalog).catch(() => {});
+    api<Catalog>(home ? "catalog/?type=cigarette" : "catalog/", { signal: controller.signal }).then(setCatalog).catch(() => {});
     return () => controller.abort();
-  }, [retry]);
+  }, [retry, home]);
   const [error, setError] = useState(
     unavailable ? "ارتباط با کاتالوگ برقرار نشد. دوباره تلاش کنید." : "",
   );
@@ -113,14 +119,15 @@ export default function Storefront({
     setBrand("");
     setMode("all");
     setAvailable(false);
-    setKind(""); setVendor(""); setPage(1);
+    setKind(home ? "cigarette" : ""); setVendor(""); setPage(1);
   }
+  const Heading = home ? "h2" : "h1";
 
   return (
     <div
-      className={`homepage-shell ${paused || reduced ? "motion-paused" : ""}`}
+      className={`${home ? "homepage-shell" : "catalog-page"} ${paused || reduced ? "motion-paused" : ""}`}
     >
-      <MotionScene
+      {home && <><MotionScene
         heroImage={heroImage}
         onMode={selectMode}
         paused={paused}
@@ -130,7 +137,7 @@ export default function Storefront({
       <div className="brand-strip">
         <div className="container brand-strip-inner">
           <span>CATALOG / INDEX</span>
-          <strong>{number(catalog.total)} کالا</strong>
+          <strong>{number(catalog.total)} مدل سیگار</strong>
           <p>
             کاتالوگ چندفروشنده{" "}
             <span>برندها، دسته‌ها و عرضه‌ها در یک مسیر.</span>
@@ -139,17 +146,17 @@ export default function Storefront({
             مرور مدل‌ها <ArrowLeft size={16} />
           </a>
         </div>
-      </div>
+      </div></>}
       <section className="container cigarette-catalog" id="catalog">
         <Reveal>
           <div className="catalog-heading">
             <div>
-            <div className="eyebrow">کاتالوگ / همه دسته‌ها</div>
-              <h2>
+            <div className="eyebrow">کاتالوگ / {home ? "مدل‌های سیگار" : "همه دسته‌ها"}</div>
+              <Heading>
                 انتخاب‌ها را
                 <br />
                 <span>کنار هم ببینید.</span>
-              </h2>
+              </Heading>
             </div>
             <p>
               نام مدل، نوع بسته‌بندی و مسیر عرضه.
@@ -158,10 +165,10 @@ export default function Storefront({
             </p>
           </div>
         </Reveal>
-        <div className="catalog-kinds" aria-label="گروه کالا">
+        {home ? <div className="catalog-route-links"><Link href="/catalog">همه کالاها <ArrowUpLeft size={16} /></Link><Link href="/catalog?type=accessory">اکسسوری و ملزومات <ArrowUpLeft size={16} /></Link></div> : <div className="catalog-kinds" aria-label="گروه کالا">
           <button className={!kind ? "active" : ""} aria-pressed={!kind} onClick={() => { setKind(""); setCategory(""); setPage(1); }}>همه کالاها</button>
           {catalog.types.map(t => <button key={t.value} className={kind === t.value ? "active" : ""} aria-pressed={kind === t.value} onClick={() => { setKind(t.value); setCategory(""); setPage(1); }}>{t.title}</button>)}
-        </div>
+        </div>}
         <div className="sale-mode-tabs" aria-label="نوع عرضه">
           <button
             className={mode === "all" ? "active" : ""}
@@ -357,7 +364,7 @@ export default function Storefront({
           </p>
         </div>
       </section>
-      <section className="wholesale-section" id="wholesale">
+      {home && <><section className="wholesale-section" id="wholesale">
         <div className="container wholesale-layout">
           <Reveal>
             <div className="eyebrow">برای فروشگاه‌ها و مراکز پخش</div>
@@ -422,7 +429,7 @@ export default function Storefront({
             </div>
           </div>
         </Reveal>
-      </section>
+      </section></>}
       <div className="health-notice container">
         مصرف دخانیات به سلامت آسیب می‌رساند. عرضه به افراد زیر ۱۸ سال مجاز نیست.
         فروش اینترنتی سیگار در این سایت فعال نیست.

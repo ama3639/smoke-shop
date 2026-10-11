@@ -19,7 +19,8 @@ export function Header() {
             </span>
           </Link>
           <nav aria-label="منوی اصلی">
-            <Link href="/#catalog">همه کالاها</Link>
+            <Link href="/#catalog">سیگار</Link>
+            <Link href="/catalog">همه کالاها</Link>
             <Link href="/#wholesale">همکاری عمده</Link>
             <Link href="/guide">واحدهای عرضه</Link>
             <Link href="/branches">شعب حضوری</Link>
@@ -49,7 +50,7 @@ export function Footer() {
         </div>
         <div>
           <h3>مسیرهای دسترسی</h3>
-          <Link href="/#catalog">
+          <Link href="/catalog">
             همه کالاها <ArrowUpLeft size={15} />
           </Link>
           <Link href="/sellers">فروشندگان <ArrowUpLeft size={15} /></Link>

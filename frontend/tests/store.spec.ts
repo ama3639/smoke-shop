@@ -139,6 +139,12 @@ test("empty cart and branches are honest and keyboard navigation works", async (
   await expect(
     page.getByRole("link", { name: "رفتن به محتوای اصلی" }),
   ).toBeFocused();
+  // Full-page screenshots must include images below the browser's lazy-load range.
+  for (const photo of await page.locator(".product-pack-photo").all()) {
+    await photo.scrollIntoViewIfNeeded();
+    await expect.poll(() => photo.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: `test-results/home-${test.info().project.name}.png`,
     fullPage: true,

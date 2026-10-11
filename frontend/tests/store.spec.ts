@@ -145,7 +145,7 @@ test("smoke follows scroll across the whole page and freezes when paused", async
   await page.goto("/");
   const layer = page.locator(".homepage-smoke");
   const video = layer.locator("video");
-  const pack = page.locator(".scene-pack-main");
+  const visual = page.locator(".scene-hero-visual");
   await expect(layer).toHaveAttribute("aria-hidden", "true");
   expect(await layer.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe(
     "none",
@@ -156,13 +156,13 @@ test("smoke follows scroll across the whole page and freezes when paused", async
   await expect
     .poll(() => video.evaluate((el) => (el as HTMLVideoElement).duration))
     .toBeGreaterThan(30);
-  const initialPack = await pack.evaluate(
+  const initialVisual = await visual.evaluate(
     (el) => getComputedStyle(el).transform,
   );
   await page.evaluate(() => scrollTo(0, Math.round(innerHeight * 0.65)));
   await expect
-    .poll(() => pack.evaluate((el) => getComputedStyle(el).transform))
-    .not.toBe(initialPack);
+    .poll(() => visual.evaluate((el) => getComputedStyle(el).transform))
+    .not.toBe(initialVisual);
   await expect
     .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
     .toBeGreaterThan(1);
@@ -227,70 +227,51 @@ test("reduced motion uses a static smoke poster without downloading the film", a
   ).not.toBe("none");
 });
 
-test("packet reveals a three-dimensional stick on hover or first touch", async ({
+test("product photos stay intact on hover and open details with one click or tap", async ({
   page,
   isMobile,
 }) => {
   await page.goto("/");
-  const card = page.locator('a.product-card[href="/products/winston-silver"]');
-  const stick = card.locator(".pack-cigarette");
-  await card.scrollIntoViewIfNeeded();
+  const hero = page.locator(".scene-hero-image");
+  await expect(hero).toBeVisible();
   await expect
-    .poll(() =>
-      card
-        .locator(".product-pack-photo")
-        .evaluate((el) => (el as HTMLImageElement).naturalWidth),
-    )
-    .toBeGreaterThan(1000);
-  await expect(stick.locator(".cigarette-facet")).toHaveCount(16);
+    .poll(() => hero.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+    .toBeGreaterThan(0);
+  expect(await hero.evaluate((el) => getComputedStyle(el).objectFit)).toBe(
+    "contain",
+  );
+  const card = page.locator('a.product-card[href="/products/winston-silver"]');
+  await card.scrollIntoViewIfNeeded();
   await expect(card.locator(".product-pack-photo")).toHaveAttribute(
     "src",
     "/images/products/winston/optimized/12.webp",
   );
-  const before = await stick.evaluate((el) => getComputedStyle(el).transform);
-  if (isMobile) {
-    await card.tap();
-    await expect(page).toHaveURL(/\/$/);
-    await expect(card.getByRole("status")).toContainText("دوباره لمس کنید");
-  } else {
-    await card.hover();
-  }
-  await expect
-    .poll(() => stick.evaluate((el) => Number(getComputedStyle(el).opacity)))
-    .toBe(1);
-  await expect
-    .poll(() => stick.evaluate((el) => getComputedStyle(el).transform))
-    .not.toBe(before);
+  if (!isMobile) await card.hover();
+  await expect(
+    page.locator(".pack-cigarette, .pack-lid, .photo-stick-window, .product-preview-note"),
+  ).toHaveCount(0);
   expect(
-    await stick.evaluate((el) => getComputedStyle(el).transform),
-  ).toContain("matrix3d");
-  await page.screenshot({
-    path: `test-results/packet-preview-${test.info().project.name}.png`,
-  });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBeTruthy();
+  await page.screenshot({
+    path: `test-results/packet-${test.info().project.name}.png`,
+  });
   if (isMobile) await card.tap();
   else await card.click();
   await expect(page).toHaveURL(/\/products\/winston-silver$/);
+  await expect(page.locator(".pack-cigarette, .pack-lid")).toHaveCount(0);
 });
 
-test("keyboard selection reveals the packet and Enter opens details immediately", async ({
+test("keyboard focus keeps the packet closed and Enter opens details", async ({
   page,
 }) => {
   await page.goto("/");
   const card = page.locator('a.product-card[href="/products/winston-silver"]');
   await card.focus();
   await expect(card).toBeFocused();
-  await expect
-    .poll(() =>
-      card
-        .locator(".pack-cigarette")
-        .evaluate((el) => Number(getComputedStyle(el).opacity)),
-    )
-    .toBe(1);
+  await expect(
+    page.locator(".pack-cigarette, .pack-lid, .product-preview-note"),
+  ).toHaveCount(0);
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/products\/winston-silver$/);
 });

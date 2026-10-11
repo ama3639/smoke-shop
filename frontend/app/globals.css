@@ -1542,108 +1542,24 @@ nav a {
 .display-stage {
   position: relative;
   width: 100%;
-  height: 540px;
-  perspective: 1200px;
+  max-width: calc(100svh - 220px);
+  margin-inline: auto;
   direction: ltr;
-  transform-style: preserve-3d;
 }
-.scene-pack,
-.scene-carton {
-  position: absolute;
-  transform-style: preserve-3d;
+.scene-hero-visual {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #fafafb;
+  border-radius: 4px;
+  box-shadow: 0 24px 60px #0003;
+  transform: translateY(calc(var(--scene-progress) * -24px));
   will-change: transform;
 }
-.scene-pack-main {
-  left: 44%;
-  top: 24%;
-  z-index: 4;
-  transform: translate3d(
-      calc(var(--scene-progress) * -72px),
-      calc(var(--scene-progress) * -88px),
-      90px
-    )
-    rotateY(calc(-25deg + var(--scene-progress) * 72deg))
-    rotateX(calc(6deg + var(--scene-progress) * -10deg))
-    rotateZ(calc(-9deg + var(--scene-progress) * 17deg));
-}
-.scene-pack-blue {
-  left: 12%;
-  top: 36%;
-  z-index: 3;
-  transform: translate3d(
-      calc(var(--scene-progress) * -100px),
-      calc(var(--scene-progress) * 20px),
-      -65px
-    )
-    rotateY(calc(-24deg - var(--scene-progress) * 22deg))
-    rotateZ(calc(12deg - var(--scene-progress) * 12deg));
-}
-.scene-pack-back {
-  left: 58%;
-  top: 5%;
-  z-index: 2;
-  transform: translate3d(
-      calc(var(--scene-progress) * 80px),
-      calc(var(--scene-progress) * -15px),
-      -130px
-    )
-    rotateY(calc(-28deg + var(--scene-progress) * 20deg)) rotateZ(14deg);
-}
-.scene-carton {
-  left: 19%;
-  top: 76%;
-  z-index: 5;
-  transform: translate3d(
-      calc(var(--scene-progress) * -6px),
-      calc(var(--scene-progress) * -40px),
-      50px
-    )
-    rotateX(calc(12deg + var(--scene-progress) * -15deg))
-    rotateY(calc(-20deg + var(--scene-progress) * -12deg)) rotateZ(-5deg);
-}
-.scene-orbit {
-  position: absolute;
-  border: 1px solid #c0b69c1c;
-  border-radius: 50%;
-  left: 4%;
-  top: 15%;
-  width: 90%;
-  height: 65%;
-  transform: rotate(-19deg);
-}
-.orbit-two {
-  left: 8%;
-  top: 21%;
-  width: 85%;
-  height: 63%;
-  transform: rotate(25deg);
-}
-.stage-platform {
-  position: absolute;
-  bottom: 4%;
-  left: 6%;
-  width: 90%;
-  height: 15%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, #0005, transparent 70%);
-  transform: rotate(-10deg);
-}
-.stage-annotation {
-  position: absolute;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  color: #aaa996;
-  z-index: 8;
-}
-.annotation-pack {
-  top: 9%;
-  left: 25%;
-  border-left: 1px solid #aaa99660;
-  padding-left: 9px;
-}
-.annotation-carton {
-  bottom: 0;
-  right: 8%;
+.scene-hero-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .scene-bottom {
   position: absolute;
@@ -1714,8 +1630,7 @@ nav a {
   position: relative;
   top: 0;
 }
-.scene-static .scene-pack,
-.scene-static .scene-carton {
+.scene-static .scene-hero-visual {
   will-change: auto;
 }
 .pack-box {
@@ -2335,10 +2250,12 @@ nav a {
   }
   .hero-sticky {
     top: 74px;
-    height: calc(100svh - 74px);
+    height: auto;
     min-height: 590px;
   }
   .scene-layout {
+    height: auto;
+    min-height: calc(100svh - 74px);
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -2395,116 +2312,10 @@ nav a {
     display: none;
   }
   .display-stage {
-    height: 280px;
-    width: 100%;
+    width: min(100%, 310px);
+    align-self: center;
     scale: 1;
-    perspective: 950px;
     margin-top: 12px;
-  }
-  .scene-pack .pack-box {
-    --pack-width: 112px;
-    --pack-height: 173px;
-    --pack-depth: 36px;
-  }
-  .scene-pack .pack-seal {
-    height: 19px;
-    padding: 5px;
-    font-size: 4px;
-    letter-spacing: 0.5px;
-  }
-  .scene-pack .pack-mark > strong {
-    font-size: 25px;
-  }
-  .scene-pack .pack-mark {
-    gap: 5px;
-    padding: 7px 5px;
-  }
-  .scene-pack .pack-variant {
-    font-size: 7px;
-    letter-spacing: 2px;
-  }
-  .scene-pack .pack-warning {
-    height: 43px;
-    font-size: 7px;
-  }
-  .scene-pack .pack-lower {
-    font-size: 4px;
-    padding: 5px;
-  }
-  .scene-pack-main {
-    left: 45%;
-    top: 25%;
-    transform: translate3d(
-        calc(var(--scene-progress) * -25px),
-        calc(var(--scene-progress) * -40px),
-        40px
-      )
-      rotateY(calc(-25deg + var(--scene-progress) * 65deg)) rotateX(6deg)
-      rotateZ(calc(-9deg + var(--scene-progress) * 16deg));
-  }
-  .scene-pack-blue {
-    left: 9%;
-    top: 38%;
-    transform: translate3d(
-        calc(var(--scene-progress) * -12px),
-        calc(var(--scene-progress) * 15px),
-        -30px
-      )
-      rotateY(calc(-24deg - var(--scene-progress) * 14deg)) rotateZ(12deg);
-  }
-  .scene-pack-back {
-    left: 60%;
-    top: 4%;
-    transform: translate3d(
-        calc(var(--scene-progress) * 10px),
-        calc(var(--scene-progress) * -20px),
-        -70px
-      )
-      rotateY(-28deg) rotateZ(14deg);
-  }
-  .scene-carton {
-    left: 19%;
-    top: 70%;
-    transform: translate3d(0, calc(var(--scene-progress) * -15px), 120px)
-      rotateX(12deg) rotateY(-20deg) rotateZ(-5deg);
-  }
-  .scene-carton .carton-box {
-    --pack-width: 205px;
-    --pack-height: 71px;
-    --pack-depth: 64px;
-  }
-  .scene-carton .pack-front {
-    grid-template-columns: 1fr 64px;
-    grid-template-rows: 14px 1fr;
-  }
-  .scene-carton .pack-seal {
-    height: 14px;
-    font-size: 4px;
-    letter-spacing: 1px;
-  }
-  .scene-carton .pack-mark > strong {
-    font-size: 23px;
-  }
-  .scene-carton .pack-variant {
-    font-size: 5px;
-  }
-  .scene-carton .pack-warning {
-    font-size: 5px;
-  }
-  .scene-carton .pack-top {
-    font-size: 11px;
-  }
-  .stage-annotation {
-    font-size: 7px;
-    letter-spacing: 1px;
-  }
-  .annotation-pack {
-    left: 23%;
-    top: 6%;
-  }
-  .annotation-carton {
-    bottom: -2px;
-    right: 5%;
   }
   .scene-bottom {
     bottom: 17px;
@@ -2800,43 +2611,14 @@ nav a {
 
 /* One fixed, scroll-scrubbed smoke film follows the entire homepage. */
 .photographed-pack {
-  --photo-air: 80px;
-  --pack-width: 132px;
-  --pack-height: 203px;
   position: relative;
-  padding-top: var(--photo-air);
   background: #fafafb;
-  perspective: 950px;
 }
 .product-pack-photo {
   display: block;
   width: 100%;
   height: auto;
   object-fit: contain;
-}
-.photo-stick-window {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: calc(
-    var(--photo-air) + (100% - var(--photo-air)) * var(--photo-pack-top, 0.1)
-  );
-  overflow: hidden;
-  pointer-events: none;
-}
-.photo-stick-window .pack-cigarette {
-  top: auto;
-  bottom: calc(var(--pack-height) * -0.8);
-  left: 57%;
-  transform: translate3d(0, 0, 0);
-}
-@media (max-width: 740px) {
-  .photographed-pack {
-    --photo-air: 64px;
-    --pack-width: 91px;
-    --pack-height: 142px;
-  }
 }
 .homepage-smoke {
   position: fixed;
@@ -2861,87 +2643,6 @@ nav a {
   object-fit: fill;
   display: block;
 }
-.photo-pack:not(.carton-box) .pack-front-photo {
-  clip-path: inset(26% 0 0 0);
-}
-.pack-lid {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--pack-width);
-  height: calc(var(--pack-height) * 0.26);
-  overflow: hidden;
-  transform: translateZ(calc(var(--pack-depth) / 2));
-  transform-origin: center bottom;
-  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
-  backface-visibility: hidden;
-}
-.pack-lid img {
-  width: var(--pack-width);
-  height: var(--pack-height);
-  display: block;
-}
-.pack-cigarette {
-  --stick-diameter: calc(var(--pack-width) * 0.075);
-  position: absolute;
-  left: 61%;
-  top: 4%;
-  width: var(--stick-diameter);
-  height: calc(var(--pack-height) * 0.8);
-  transform-style: preserve-3d;
-  transform: translate3d(0, calc(var(--pack-height) * 0.14), 0);
-  opacity: 0;
-  transition:
-    transform 650ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 200ms ease;
-}
-.cigarette-facet {
-  position: absolute;
-  height: 100%;
-  width: calc(var(--stick-diameter) * 0.199);
-  left: 50%;
-  margin-left: calc(var(--stick-diameter) * -0.0995);
-  background: linear-gradient(90deg, #ddd9cf, #fffdf5);
-  filter: brightness(var(--facet-shade));
-  transform: rotateY(var(--facet-angle))
-    translateZ(calc(var(--stick-diameter) / 2));
-  backface-visibility: hidden;
-}
-.cigarette-facet i {
-  display: block;
-  height: 34%;
-  background:
-    radial-gradient(#7e4e31 0.6px, transparent 0.8px) 0 0 / 3px 4px,
-    linear-gradient(#c99c65, #d7b27c);
-  border-bottom: 1px solid #a6845d;
-}
-.cigarette-filter-end,
-.cigarette-tobacco-end {
-  position: absolute;
-  width: var(--stick-diameter);
-  height: var(--stick-diameter);
-  border-radius: 50%;
-  transform: rotateX(90deg);
-}
-.cigarette-filter-end {
-  top: calc(var(--stick-diameter) / -2);
-  background: radial-gradient(circle, #f3e6d1, #b6a78f);
-}
-.cigarette-tobacco-end {
-  bottom: calc(var(--stick-diameter) / -2);
-  background: radial-gradient(#a97947 1px, #493323 1.5px) 0 0 / 3px 3px;
-}
-.product-card:is(:focus-visible, .is-selected) .pack-cigarette {
-  opacity: 1;
-  transform: translate3d(-3px, calc(var(--pack-height) * -0.48), 8px)
-    rotateZ(-9deg);
-}
-.product-card:is(:focus-visible, .is-selected) .pack-lid {
-  transform: translateZ(calc(var(--pack-depth) / 2)) rotateX(-65deg);
-}
-.product-card:is(:focus-visible, .is-selected) .pack-box {
-  transform: rotateY(-8deg) rotateX(2deg) rotateZ(-2deg);
-}
 .product-photo-note {
   position: absolute;
   top: 38px;
@@ -2949,34 +2650,10 @@ nav a {
   font-size: 8px;
   color: #766d5d;
 }
-.product-preview-note {
-  display: block;
-  margin-top: 6px;
-  padding: 7px;
-  background: #25251de8;
-  color: #fff;
-  text-align: center;
-  border-radius: 4px;
-  font-size: 10px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .product-card:hover .pack-cigarette {
-    opacity: 1;
-    transform: translate3d(-3px, calc(var(--pack-height) * -0.48), 8px)
-      rotateZ(-9deg);
-  }
-  .product-card:hover .pack-lid {
-    transform: translateZ(calc(var(--pack-depth) / 2)) rotateX(-65deg);
-  }
-}
-.motion-paused .pack-cigarette,
-.motion-paused .pack-lid,
 .motion-paused .pack-box {
   transition: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .pack-cigarette,
-  .pack-lid,
   .pack-box {
     transition: none;
   }
@@ -3008,8 +2685,7 @@ nav a {
     position: relative;
     top: 0;
   }
-  .scene-pack,
-  .scene-carton {
+  .scene-hero-visual {
     will-change: auto;
   }
   .scroll-reveal[data-reveal="ready"] {

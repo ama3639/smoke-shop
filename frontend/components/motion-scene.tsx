@@ -2,14 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import { ArrowDown, ArrowUpLeft, Pause, Play } from "lucide-react";
-import { PackBox } from "./pack-3d";
 
 export default function MotionScene({
   onMode,
+  heroImage,
   paused,
   reduced,
   onPause,
 }: {
+  heroImage: string;
   onMode: (mode: "retail" | "wholesale") => void;
   paused: boolean;
   reduced: boolean;
@@ -97,30 +98,19 @@ export default function MotionScene({
               </span>
             </div>
           </div>
-          <div className="display-stage" aria-hidden="true">
-            <div className="scene-orbit orbit-one" />
-            <div className="scene-orbit orbit-two" />
-            <div className="scene-pack scene-pack-back">
-              <PackBox tone="silver" variant="SILVER" />
-            </div>
-            <div className="scene-pack scene-pack-blue">
-              <PackBox tone="blue" variant="BLUE" />
-            </div>
-            <div className="scene-pack scene-pack-main">
-              <PackBox
-                tone="silver"
-                variant="SILVER"
-                frontImage="/images/winston-silver-reference.webp"
+          <div className="display-stage">
+            <div className="scene-hero-visual">
+              <img
+                className="scene-hero-image"
+                src={heroImage}
+                alt="بسته‌بندی وینستون"
+                width="1254"
+                height="1254"
+                fetchPriority="high"
+                decoding="async"
+                draggable={false}
               />
             </div>
-            <div className="scene-carton">
-              <PackBox tone="blue" format="carton" variant="BLUE" />
-            </div>
-            <span className="stage-annotation annotation-pack">01 / PACK</span>
-            <span className="stage-annotation annotation-carton">
-              02 / CARTON
-            </span>
-            <div className="stage-platform" />
           </div>
         </div>
         <div className="container scene-bottom">

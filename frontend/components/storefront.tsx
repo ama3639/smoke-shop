@@ -23,17 +23,17 @@ export default function Storefront({
   initialProducts,
   catalog,
   unavailable,
+  heroImage,
 }: {
   initialProducts: Product[];
   catalog: Catalog;
   unavailable: boolean;
+  heroImage: string;
 }) {
   const [products, setProducts] = useState(initialProducts);
   const [paused, setPaused] = useState(false);
   // Render the poster until the device's motion preference is known.
   const [reduced, setReduced] = useState(true);
-  const [preview, setPreview] = useState<number | null>(null);
-  const pointerType = useRef("");
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReduced(preference.matches);
@@ -106,6 +106,7 @@ export default function Storefront({
     >
       <HomepageSmoke disabled={paused || reduced} reduced={reduced} />
       <MotionScene
+        heroImage={heroImage}
         onMode={setMode}
         paused={paused}
         reduced={reduced}
@@ -248,23 +249,9 @@ export default function Storefront({
           >
             {products.map((p, index) => (
               <Link
-                className={`product-card ${preview === p.id ? "is-selected" : ""}`}
+                className="product-card"
                 key={p.id}
                 href={`/products/${p.slug}`}
-                onPointerDown={(e) => {
-                  pointerType.current = e.pointerType;
-                }}
-                onBlur={() => setPreview(null)}
-                onClick={(e) => {
-                  if (
-                    e.detail !== 0 &&
-                    pointerType.current === "touch" &&
-                    preview !== p.id
-                  ) {
-                    e.preventDefault();
-                    setPreview(p.id);
-                  }
-                }}
               >
                 <div className="product-image">
                   <span className="cig-model-number" dir="ltr">
@@ -284,11 +271,6 @@ export default function Storefront({
                     <ArrowUpLeft size={20} />
                   </span>
                 </div>
-                {preview === p.id && (
-                  <span className="product-preview-note" role="status">
-                    برای مشخصات، دوباره لمس کنید
-                  </span>
-                )}
                 <div className="product-meta">
                   <span>{p.category_title}</span>
                   <span dir="ltr">{p.brand}</span>

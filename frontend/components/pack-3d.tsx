@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import CigaretteStick from "./cigarette-stick";
 
 export type PackTone = "red" | "blue" | "silver";
 
@@ -75,16 +74,6 @@ export function PackBox({
         <span>{brand}</span>
       </div>
       <div className="pack-face pack-bottom" />
-      {format === "pack" && (
-        <>
-          <CigaretteStick />
-          {frontImage && (
-            <div className="pack-lid">
-              <img src={frontImage} alt="" draggable={false} />
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 }

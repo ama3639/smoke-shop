@@ -171,26 +171,17 @@ export default function Storefront({
       </div>
       <CatalogSections brands={catalog.brands} /></>}
       <section className="container cigarette-catalog" id="catalog">
-        {specialist && <div className="specialist-intro">
-          <span className="eyebrow" dir="ltr">{kind === "tobacco" ? "TOBACCO / CATALOG" : "HOOKAH / COLLECTION"}</span>
-          <h2>{kind === "tobacco" ? "تنباکو؛ مشخصات هر بسته." : "قلیان؛ مدل‌ها و ملزومات."}</h2>
-          <p>{kind === "tobacco" ? "برند، دسته، طعم و وزن را از اطلاعات ثبت‌شده بررسی کنید." : "مدل‌های ثبت‌شده را مرور کنید؛ قطعات و ابزار در کاتالوگ اکسسوری هستند."}</p>
-          {category === "hookah" && <Link href="/catalog?type=accessory">مرور اکسسوری <ArrowUpLeft size={16} /></Link>}
-        </div>}
         <Reveal>
-          <div className="catalog-heading">
+          <div className={`catalog-heading ${specialist ? "specialist-intro" : ""}`}>
             <div>
-            <div className="eyebrow">کاتالوگ / {home ? "مدل‌های سیگار" : "همه دسته‌ها"}</div>
+            <div className="eyebrow">کاتالوگ / {home ? "مدل‌های سیگار" : kind === "tobacco" ? "تنباکو" : category === "hookah" ? "قلیان" : "همه دسته‌ها"}</div>
               <Heading>
-                انتخاب‌ها را
-                <br />
-                <span>کنار هم ببینید.</span>
+                {specialist ? (kind === "tobacco" ? "تنباکو؛ مشخصات هر بسته." : "قلیان؛ مدل‌ها و ملزومات.") : <>انتخاب‌ها را<br /><span>کنار هم ببینید.</span></>}
               </Heading>
             </div>
             <p>
-              نام مدل، نوع بسته‌بندی و مسیر عرضه.
-              <br />
-              اطلاعات روشن برای مراجعه و همکاری.
+              {specialist ? (kind === "tobacco" ? "برند، دسته، طعم و وزن را از اطلاعات ثبت‌شده بررسی کنید." : "مدل‌های ثبت‌شده را مرور کنید؛ قطعات و ابزار در کاتالوگ اکسسوری هستند.") : <>نام مدل، نوع بسته‌بندی و مسیر عرضه.<br />اطلاعات روشن برای مراجعه و همکاری.</>}
+              {category === "hookah" && <><br /><Link href="/catalog?type=accessory">مرور اکسسوری <ArrowUpLeft size={16} /></Link></>}
             </p>
           </div>
         </Reveal>

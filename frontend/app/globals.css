@@ -2792,7 +2792,8 @@ nav a {
 .discovery-card { min-height: 210px; border-radius: 2px; padding: 24px 30px; }
 .discovery-card:nth-child(4), .discovery-card:nth-child(5) { background: #eee8df; }
 .specialist-intro { padding: 30px; margin-bottom: 36px; border-inline-start: 2px solid var(--copper); background: var(--paper); }
-.specialist-intro h2 { font-size: clamp(24px, 3vw, 38px); line-height: 1.6; font-weight: 400; margin-block: 12px; }
+.catalog-heading.specialist-intro { display: block; }
+.specialist-intro h1 { font-size: clamp(24px, 3vw, 38px); line-height: 1.6; font-weight: 400; margin-block: 12px; }
 .specialist-intro p { font-size: 13px; color: var(--muted); }
 .specialist-intro a { display: inline-flex; gap: 8px; align-items: center; color: var(--copper); font-size: 12px; }
 .tobacco-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; border-top: 1px solid var(--line); margin-top: 20px; padding-top: 20px; }

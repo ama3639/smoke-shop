@@ -1,10 +1,23 @@
 # AI/EXECUTION_GUIDE.md — راهنمای اجرای AI
 
-> **نسخه:** 0.1.0  
-> **تاریخ:** 2026-10-08  
+> **نسخه:** 0.7.1
+> **تاریخ:** 2026-10-11
 > **به‌روزرسانی شود:** با تغییر فرایند اجرا، دامنه عامل‌ها یا دستور اجرا
 
 ---
+
+
+## قرارداد اجرایی جاری 0.7.1 (2026-10-11)
+
+نسخه اجرایی Next.js/TypeScript + Django/DRF در یک برنامه shop است؛ SQLite توسعه و PostgreSQL تولید/هم‌زمانی. RAG، NeMo، LangGraph و Health AI در این نسخه اجرا نشده‌اند. بخش‌های طراحی AI در ادامه اهداف آینده‌اند؛ ساختارها و سرویس‌های مثال را به‌عنوان API نصب‌شده استفاده نکنید. مرجع رفتار واقعی کد، [PROJECT_CONTEXT](../PROJECT_CONTEXT.md) و [قرارداد API](../docs/api/CATALOG_API.md) است.
+
+- کاتالوگ مستقل /catalog همه انواع و صفحه‌بندی دارد؛ هوم‌پیج فقط سیگار است و اکسسوری در /catalog?type=accessory می‌ماند؛ facets از کل کالاهای عمومی، نه صفحه اول. دسته/برند جدید بدون تغییر UI.
+- Product کالای مرجع و سیاست خرید؛ Vendor اعضا و هویت؛ Offer قیمت/موجودی مستقل. موجودی Product با Offer جمع نمی‌شود. approved عرضه فقط مرکزی؛ Seller نباید داده فروشنده دیگر ببیند.
+- checkout سبد و موجودی را تراکنشی قفل می‌کند، snapshot فروشنده دارد؛ لغو/انقضا یک‌بار موجودی همان عرضه را برمی‌گرداند. زمان‌بند expire_orders جدا لازم است.
+- cigarette/tobacco در سرور قابل خرید نیستند، حتی تأیید اشتباه؛ default SKU بررسی‌نشده است. پرداخت وجود ندارد.
+- فیلم دود فقط در hero پخش می‌شود؛ در خروج از دید/تب مخفی توقف دارد و reduced-motion رسانه را بارگذاری نمی‌کند. هر موشن جدید محلی، بدون تاری محتوا و قابل توقف باشد. RTL، عرض ۳۲۰، موبایل/دسکتاپ، صفحه‌کلید و reduced-motion بررسی شوند.
+- منبع وب باید مدل/بازار را اثبات کند؛ مشخصات/قیمت/موجودی نامعلوم حدس زده نشود. source_url و date و notes حفظ داده ویرایش‌شده دارند.
+- روی feature branch توسعه و PR برای main باز شود؛ merge/deploy تولید در این مرحله انجام نمی‌شود. وضعیت نسخه و CHANGELOG/CONTEXT/DECISIONS/راهنمای عملیات به‌روز شوند.
 
 ## ۱. ترتیب مطالعه برای هر جلسه کاری
 
@@ -213,7 +226,7 @@ class HealthAgentState:
 نسبت بهینه: 1 ≤ Reflection/Question ≤ 2
 ```
 
-اگر نسبت کمتر از ۱ شود: تعارض درونی کاربر افزایش می‌یابد.  
+اگر نسبت کمتر از ۱ شود: تعارض درونی کاربر افزایش می‌یابد.
 اگر نسبت بیشتر از ۲ شود: مکالمه یک‌طرفه به نظر می‌رسد.
 
 ---
@@ -232,18 +245,14 @@ R = Remove Tobacco      → حذف ابزارهای دخانی از محیط
 ## ۹. اعتبارسنجی پیش از Deploy
 
 ```bash
-# Backend
-python -m py_compile <file>.py
-python manage.py check
-pytest --tb=short
-
-# Frontend
-tsc --noEmit
-npm run lint
+backend/.venv/bin/python backend/manage.py check
+backend/.venv/bin/python backend/manage.py makemigrations --check --dry-run
+backend/.venv/bin/python backend/manage.py test shop
+cd frontend
+npm run typecheck
 npm run build
-
-# Import/Circular Check
-pydeps backend/ --max-bacon=2 --noshow
+npx playwright install chromium
+npm run test:e2e
 ```
 
 **قانون:** Compile موفق به معنی Regression PASS نیست. تست رگرسیون الزامی است.

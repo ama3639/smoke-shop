@@ -12,13 +12,17 @@
 
 ```powershell
 Set-Location D:\Smokeshop
+git switch main
 git pull --ff-only origin main
+git switch -c assets/homepage-photo
 New-Item -ItemType Directory -Force frontend\public\images\hero | Out-Null
 # اکنون عکس دوم را در مسیر بالا با نام winston-collection.png قرار دهید.
 git add frontend/public/images/hero/winston-collection.png
 git commit -m "assets: update Winston homepage collection photo"
-git push origin HEAD:main
+git push -u origin HEAD
 py -3.12 scripts/dev.py
 ```
 
 به migration، seed یا تغییر محصول نیاز نیست. اگر سایت تولیدی دارید، فایل `public/images/hero/` همراه خروجی تولید منتشر و سرویس مجدداً راه‌اندازی شود. تست مرورگر بارگذاری عکس، نمایش کامل آن و حرکت اسکرول را بررسی می‌کند.
+
+نسخه 0.7.1: حرکت عکس و موشن دود واقعی فقط در hero، بدون تاری یا لایه ثابت کل صفحه. عکس اصلی برش یا ویرایش نشده است. پس از تغییر دارایی PR به main باز کنید.

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from datetime import date
 from shop.models import AuditLog, Category, FeatureFlag, Product
 from shop.winston_catalog import CATEGORIES, WINSTON_CATALOG, DESCRIPTION, LEGACY_DESCRIPTION
 
@@ -40,6 +41,12 @@ class Command(BaseCommand):
                             changes.append(field)
                 if changes:
                     product.save(update_fields=[*changes, 'updated_at'])
+            if product.brand == 'Winston' and not product.source_url:
+                product.manufacturer = product.manufacturer or 'JTI — گروه برند در بازار جهانی'
+                product.source_url = 'https://www.jti.com/en/our-brands'
+                product.source_checked_on = date(2026, 10, 11)
+                product.specification_notes = product.specification_notes or 'منبع رسمی، ارتباط برند Winston با JTI را تأیید می‌کند؛ کشور تولید، تعداد واحد، نیکوتین و قطران این مدل از این منبع تأیید نمی‌شوند.'
+                product.save(update_fields=['manufacturer', 'source_url', 'source_checked_on', 'specification_notes', 'updated_at'])
         for key, description in [('cart', 'سبد اقلام دارای مجوز'), ('order_requests', 'رزرو سفارش بدون پرداخت؛ نیازمند آماده‌سازی عملیات')]:
             FeatureFlag.objects.get_or_create(key=key, defaults={'description': description})
         self.stdout.write(self.style.SUCCESS('Winston photo catalog prepared; online sales remain disabled.'))

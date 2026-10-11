@@ -1,10 +1,11 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import Storefront from "@/components/storefront";
-import { Catalog, Product, serverApi } from "@/lib/api";
+import { Catalog, ProductPage, serverApi } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ vendor?: string }> }) {
+  const vendor = (await searchParams).vendor || "";
   // Use the exact hero photo supplied through Git; keep a real packet photo until upload.
   const heroImage = existsSync(
     join(process.cwd(), "public/images/hero/winston-collection.png"),
@@ -13,13 +14,14 @@ export default async function Home() {
     : "/images/products/winston/optimized/12.webp";
   try {
     const [products, catalog] = await Promise.all([
-      serverApi<Product[]>("catalog/products/?type=cigarette"),
+      serverApi<ProductPage>(`catalog/products/?type=cigarette&pagination=1&page_size=24&vendor=${encodeURIComponent(vendor)}`),
       serverApi<Catalog>("catalog/?type=cigarette"),
     ]);
     return (
       <Storefront
         heroImage={heroImage}
-        initialProducts={products}
+        initialPage={products}
+        initialVendor={vendor}
         catalog={catalog}
         unavailable={false}
       />
@@ -28,8 +30,9 @@ export default async function Home() {
     return (
       <Storefront
         heroImage={heroImage}
-        initialProducts={[]}
-        catalog={{ categories: [], devices: [], checkout_enabled: false }}
+        initialPage={{ items: [], total: 0, page: 1, page_size: 24, pages: 1, has_next: false }}
+        initialVendor={vendor}
+        catalog={{ categories: [], devices: [], checkout_enabled: false, brands: [], types: [], vendors: [], total: 0, updated_at: null }}
         unavailable
       />
     );

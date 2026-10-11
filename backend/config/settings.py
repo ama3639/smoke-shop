@@ -52,6 +52,7 @@ AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.' 
                            ['UserAttributeSimilarityValidator', 'MinimumLengthValidator', 'CommonPasswordValidator', 'NumericPasswordValidator']]
 LANGUAGE_CODE = 'fa'
 TIME_ZONE = 'Asia/Tehran'
+ORDER_RESERVATION_MINUTES = max(1, int(os.getenv('ORDER_RESERVATION_MINUTES', '30')))
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = 'static/'

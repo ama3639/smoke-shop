@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ArrowDown, ArrowUpLeft, Pause, Play } from "lucide-react";
+import HomepageSmoke from "./homepage-smoke";
 
 export default function MotionScene({
   onMode,
@@ -51,9 +52,10 @@ export default function MotionScene({
     <section
       ref={scene}
       className={`cigarette-hero ${paused || reduced ? "scene-static" : ""}`}
-      aria-label="معرفی کاتالوگ سیگار وینستون"
+      aria-label="معرفی کاتالوگ اسموک‌شاپ"
     >
       <div className="hero-sticky">
+        <HomepageSmoke disabled={paused || reduced} reduced={reduced} />
         <div className="scene-hero-visual">
           <img
             className="scene-hero-image"
@@ -69,17 +71,16 @@ export default function MotionScene({
         <div className="container scene-layout">
           <div className="cigarette-hero-copy">
             <div className="scene-eyebrow">
-              <span /> اسموک‌شاپ / کاتالوگ وینستون
+              <span /> اسموک‌شاپ / کاتالوگ چندفروشنده
             </div>
             <h1>
-              سیگار.
+              کاتالوگ.
               <br />
-              <span>از بسته</span> <br />
-              تا کارتن.
+              <span>جزئیات روشن.</span> <br />
+              انتخاب آگاهانه.
             </h1>
             <p>
-              کاتالوگ وینستون برای مراجعه تکی و همکاری با فروشگاه‌ها و مراکز
-              پخش.
+              مدل‌ها، اکسسوری و اطلاعات عرضه را کنار هم ببینید؛ از مشخصات کالا تا فروشنده و مسیر مراجعه.
             </p>
             <div className="scene-actions">
               <a
@@ -102,7 +103,7 @@ export default function MotionScene({
               <span>
                 نخستین برند کاتالوگ
                 <br />
-                برندهای دیگر، در ادامه
+              همه برندها در کاتالوگ
               </span>
             </div>
           </div>

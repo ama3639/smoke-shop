@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { ArrowUpLeft, Box, Cigarette, Layers, Wind } from "lucide-react";
+import { ArrowUpLeft, Box, Cigarette, FlaskConical, Leaf, Layers, Wind } from "lucide-react";
 import type { Catalog } from "@/lib/api";
 
 export const catalogRoutes = [
   { title: "سیگار", href: "/catalog?type=cigarette", detail: "مدل‌ها و بسته‌بندی", icon: Cigarette },
   { title: "ویپ و پاد", href: "/catalog?category=vape-pod", detail: "دستگاه و قطعات", icon: Wind },
   { title: "پیپ", href: "/catalog?category=pipe", detail: "مدل‌ها و ملزومات", icon: Layers },
+  { title: "قلیان", href: "/catalog?category=hookah", detail: "مدل‌ها و تجهیزات", icon: FlaskConical },
+  { title: "تنباکو", href: "/catalog?type=tobacco", detail: "برند، طعم و وزن", icon: Leaf },
   { title: "اکسسوری", href: "/catalog?type=accessory", detail: "ابزار و لوازم جانبی", icon: Box },
 ];
 
@@ -25,7 +27,7 @@ export function CatalogSections({ brands }: { brands: Catalog["brands"] }) {
           </Link>
         ))}
       </div>
-      <div className="discovery-note"><span>محصولات ثبت‌شده در هر دسته نمایش داده می‌شوند.</span><Link href="/catalog?type=tobacco">سایر دخانیات <ArrowUpLeft size={15} /></Link></div>
+      <div className="discovery-note"><span>محصولات ثبت‌شده در هر دسته نمایش داده می‌شوند.</span><Link href="/catalog?type=tobacco">مشخصات تنباکو <ArrowUpLeft size={15} /></Link></div>
       {brands.length > 0 && <div className="brand-index" aria-label="برندهای ثبت‌شده">
         <span>برندهای کاتالوگ سیگار</span>
         {brands.map(brand => <Link key={brand} href={`/catalog?type=cigarette&brand=${encodeURIComponent(brand)}`} dir="auto">{brand}</Link>)}
@@ -33,3 +35,4 @@ export function CatalogSections({ brands }: { brands: Catalog["brands"] }) {
     </section>
   );
 }
+

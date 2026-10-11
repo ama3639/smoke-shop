@@ -567,3 +567,51 @@ class MarketplaceTests(TestCase):
         self.assertEqual(SellerOrderItemAdmin(OrderItem, AdminSite()).get_queryset(request).count(), 2)
         self.assertEqual(LedgerAdmin(StockLedger, AdminSite()).get_queryset(request).count(), 2)
         self.assertFalse(OfferAdmin(Offer, AdminSite()).has_change_permission(request))
+
+
+
+class TobaccoFacetTests(TestCase):
+    def setUp(self):
+        self.category = Category.objects.create(title='تنباکوی آزمون', slug='test-tobacco')
+        for slug, flavor, weight in [('mint-small', 'نعناع', '50'), ('mint-large', 'نعناع', '250'), ('apple', 'سیب', '50')]:
+            Product.objects.create(title=slug, slug=slug, sku=slug, category=self.category,
+                product_type='tobacco', brand='Test Brand', flavor=flavor, weight_grams=weight,
+                legal_status='CATALOG_ONLY')
+        Product.objects.create(title='Unknown', slug='unknown', sku='unknown', category=self.category,
+            product_type='tobacco', legal_status='CATALOG_ONLY')
+        Product.objects.create(title='Hidden', slug='hidden', sku='hidden', category=self.category,
+            product_type='tobacco', flavor='Secret', weight_grams=999, brand='Secret', legal_status='BLOCKED')
+        Product.objects.create(title='Other', slug='other', sku='other', category=self.category,
+            product_type='accessory', flavor='Not tobacco', weight_grams=123, legal_status='CATALOG_ONLY')
+
+    def test_facets_include_only_known_public_tobacco_values(self):
+        data = self.client.get('/api/v1/catalog/', {'type': 'tobacco'}).json()['data']
+        self.assertCountEqual(data['flavors'], ['نعناع', 'سیب'])
+        self.assertEqual(data['weights'], ['50.00', '250.00'])
+        self.assertEqual(data['brands'], ['Test Brand'])
+        self.assertEqual(self.client.get('/api/v1/catalog/', {'type': 'accessory'}).json()['data']['flavors'], [])
+
+    def test_combined_filters_keep_existing_array_contract_and_purchase_policy(self):
+        params = {'type': 'tobacco', 'brand': 'Test Brand', 'flavor': 'نعناع', 'weight': '250', 'category': 'test-tobacco'}
+        result = self.client.get('/api/v1/catalog/products/', params).json()
+        self.assertIsInstance(result['data'], list)
+        self.assertEqual([p['slug'] for p in result['data']], ['mint-large'])
+        self.assertEqual(result['data'][0]['weight_grams'], '250.00')
+        self.assertFalse(result['data'][0]['purchasable'])
+        self.assertIsNone(result['data'][0]['price'])
+        params['pagination'] = '1'
+        self.assertEqual(self.client.get('/api/v1/catalog/products/', params).json()['data']['total'], 1)
+
+    def test_unknown_specs_remain_empty_and_invalid_weights_are_rejected(self):
+        p = self.client.get('/api/v1/catalog/products/unknown/').json()['data']
+        self.assertEqual(p['flavor'], '')
+        self.assertIsNone(p['weight_grams'])
+        for weight in ['NaN', 'Infinity', '-1', '0', '0.001', 'bad', '1000000', '50.000', '1e-99999999']:
+            self.assertEqual(self.client.get('/api/v1/catalog/products/', {'weight': weight}).status_code, 400)
+        self.assertEqual(self.client.get('/api/v1/catalog/products/', {'weight': '500'}).json()['data'], [])
+
+    def test_flavor_is_searchable_with_persian_normalization(self):
+        p = Product.objects.get(slug='apple')
+        p.flavor = 'کرمی'; p.save()
+        data = self.client.get('/api/v1/catalog/products/', {'q': 'كرمي'}).json()['data']
+        self.assertEqual([p['slug'] for p in data], ['apple'])

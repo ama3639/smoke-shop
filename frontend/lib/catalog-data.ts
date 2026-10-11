@@ -17,16 +17,18 @@ export async function readCatalog(params: CatalogParams, home = false) {
   const filters = {
     type: kind, vendor: value(params, "vendor"), mode,
     category: value(params, "category"), brand: value(params, "brand"), q: value(params, "q"),
+    flavor: home ? "" : value(params, "flavor"), weight: home ? "" : value(params, "weight"),
   };
   let unavailable = false;
   let products: ProductPage = { items: [], total: 0, page: 1, page_size: 24, pages: 1, has_next: false };
-  let catalog: Catalog = { categories: [], devices: [], checkout_enabled: false, brands: [], types: [], vendors: [], total: 0, updated_at: null };
+  let catalog: Catalog = { categories: [], devices: [], checkout_enabled: false, brands: [], flavors: [], weights: [], types: [], vendors: [], total: 0, updated_at: null };
   try {
     const query = new URLSearchParams({ ...filters, pagination: "1", page_size: "24" });
     [products, catalog] = await Promise.all([
       serverApi<ProductPage>(`catalog/products/?${query}`),
-      serverApi<Catalog>(home ? "catalog/?type=cigarette" : "catalog/"),
+      serverApi<Catalog>(`catalog/?${new URLSearchParams({ type: kind })}`),
     ]);
   } catch { unavailable = true; }
   return { products, catalog, filters, unavailable };
 }
+

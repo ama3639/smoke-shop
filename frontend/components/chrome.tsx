@@ -32,7 +32,6 @@ export function Header() {
         <div className="container header-navigation">
           <nav aria-label="منوی اصلی">
             {catalogRoutes.map(route => <Link key={route.href} href={route.href}>{route.title}</Link>)}
-            <Link href="/catalog?type=tobacco">سایر دخانیات</Link>
             <Link href="/catalog">همه کالاها</Link>
           </nav>
           <div className="header-utilities"><Link href="/sellers">فروشندگان</Link><Link href="/branches">شعب حضوری</Link><Link href="/guide">راهنمای عرضه</Link></div>
@@ -85,3 +84,4 @@ export function Footer() {
     </footer>
   );
 }
+

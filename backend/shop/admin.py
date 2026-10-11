@@ -48,7 +48,7 @@ class ProductAdmin(LegalAdmin):
     date_hierarchy = 'updated_at'
     fieldsets = (
         ('شناسه و دسته‌بندی', {'fields': ('title', 'slug', 'sku', 'category', 'product_type', 'brand', 'active')}),
-        ('تصویر و مشخصات', {'fields': ('image', 'catalog_image', 'illustration', 'description', 'material', 'dimensions', 'sticks_per_pack', 'packs_per_carton')}),
+        ('تصویر و مشخصات', {'fields': ('image', 'catalog_image', 'illustration', 'description', 'material', 'dimensions', 'flavor', 'weight_grams', 'sticks_per_pack', 'packs_per_carton')}),
         ('منبع و بررسی داده', {'fields': ('manufacturer', 'source_url', 'source_checked_on', 'specification_notes')}),
         ('عرضه مستقیم فروشگاه', {'fields': ('price', 'stock', 'retail_available', 'wholesale_available'), 'description': 'موجودی فروشندگان از بخش عرضه‌ها مدیریت می‌شود؛ این فیلدها فقط برای عرضه مستقیم بدون فروشنده‌اند.'}),
         ('تأیید حقوقی', {'fields': ('legal_status', 'legal_reference')}),
@@ -238,3 +238,4 @@ class SellerOrderItemAdmin(ReadOnlyAdmin):
     @admin.display(description='وضعیت درخواست')
     def order_status(self, obj):
         return obj.order.status
+

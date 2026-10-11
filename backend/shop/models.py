@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator, RegexValidator
@@ -33,6 +34,8 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
     product_type = models.CharField('نوع کالا', max_length=20, choices=[('accessory', 'اکسسوری'), ('cigarette', 'سیگار'), ('tobacco', 'سایر دخانیات'), ('other', 'سایر کالاها')], default='accessory')
     brand = models.CharField('برند', max_length=100, blank=True)
+    flavor = models.CharField('طعم ثبت‌شده', max_length=100, blank=True, help_text='فقط مطابق منبع محصول؛ مقدار نامعلوم خالی بماند.')
+    weight_grams = models.DecimalField('وزن خالص به گرم', max_digits=8, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.01'))])
     manufacturer = models.CharField('تولیدکننده / گروه برند', max_length=150, blank=True)
     source_url = models.URLField('منبع اطلاعات', max_length=500, blank=True)
     source_checked_on = models.DateField('تاریخ بررسی منبع', null=True, blank=True)
@@ -69,7 +72,7 @@ class Product(models.Model):
             raise ValidationError({'legal_reference': 'تأیید فروش آنلاین به مرجع کتبی نیاز دارد.'})
 
     def save(self, *args, **kwargs):
-        self.search_text = normalize(f'{self.title} {self.sku} {self.brand} {self.description} {self.material}')
+        self.search_text = normalize(f'{self.title} {self.sku} {self.brand} {self.flavor} {self.description} {self.material}')
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -210,3 +213,4 @@ class AuditLog(models.Model):
     entity = models.CharField(max_length=100)
     changes = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
+

@@ -54,10 +54,18 @@ export default function MotionScene({
       aria-label="معرفی کاتالوگ سیگار وینستون"
     >
       <div className="hero-sticky">
-        <div className="scene-bg-word" aria-hidden="true" dir="ltr">
-          Winston
+        <div className="scene-hero-visual">
+          <img
+            className="scene-hero-image"
+            src={heroImage}
+            alt="بسته‌بندی وینستون"
+            width="1254"
+            height="1254"
+            fetchPriority="high"
+            decoding="async"
+            draggable={false}
+          />
         </div>
-        <div className="scene-grain" aria-hidden="true" />
         <div className="container scene-layout">
           <div className="cigarette-hero-copy">
             <div className="scene-eyebrow">
@@ -96,20 +104,6 @@ export default function MotionScene({
                 <br />
                 برندهای دیگر، در ادامه
               </span>
-            </div>
-          </div>
-          <div className="display-stage">
-            <div className="scene-hero-visual">
-              <img
-                className="scene-hero-image"
-                src={heroImage}
-                alt="بسته‌بندی وینستون"
-                width="1254"
-                height="1254"
-                fetchPriority="high"
-                decoding="async"
-                draggable={false}
-              />
             </div>
           </div>
         </div>

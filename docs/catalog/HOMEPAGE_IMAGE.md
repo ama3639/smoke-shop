@@ -1,8 +1,8 @@
 # تصویر گروهی هوم‌پیج
 
-تصویر دوم انتخاب‌شده کاربر، چهار پاکت وینستون روی زمینه سفید با هشدار «Fumer tue» است. پیش‌نمایش گفتگو در دسترس است، اما فایل اصلی هنوز وارد مخزن نشده است. تصویر بازطراحی یا از وب جایگزین نمی‌شود.
+تصویر دوم انتخاب‌شده کاربر، چهار پاکت وینستون روی زمینه سفید با هشدار «Fumer tue» است. فایل اصلی با ابعاد 1254×1254 از لوکال در commit `e1e696f` دریافت شد. عکس در زمینه روشن کل بخش ابتدایی قرار می‌گیرد؛ قاب مستقل، سایه قاب و زمینه تیره حذف شده‌اند. متن تیره در سمت راست و روی موبایل بالای عکس قرار می‌گیرد. تصویر برش یا بازطراحی نمی‌شود.
 
-فایل PNG واقعی را با نام زیر ذخیره کنید:
+برای تعویض تصویر در آینده، PNG را در همین مسیر ذخیره کنید:
 
 `D:\Smokeshop\frontend\public\images\hero\winston-collection.png`
 
@@ -16,7 +16,7 @@ git pull --ff-only origin main
 New-Item -ItemType Directory -Force frontend\public\images\hero | Out-Null
 # اکنون عکس دوم را در مسیر بالا با نام winston-collection.png قرار دهید.
 git add frontend/public/images/hero/winston-collection.png
-git commit -m "assets: add Winston homepage collection photo"
+git commit -m "assets: update Winston homepage collection photo"
 git push origin HEAD:main
 py -3.12 scripts/dev.py
 ```

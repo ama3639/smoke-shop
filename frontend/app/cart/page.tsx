@@ -27,7 +27,7 @@ export default function CartPage() {
   async function remove(id: number) {
     setBusy(true);
     try {
-      setCart(await mutate<Cart>("cart/", { product_id: id }, "DELETE"));
+      setCart(await mutate<Cart>("cart/", { item_id: id }, "DELETE"));
       key.current = "";
       setError("");
     } catch (e) {
@@ -84,8 +84,8 @@ export default function CartPage() {
       ) : (
         <div className="cart-grid">
           <div>
-            {cart.items.map(({ product: p, quantity }) => (
-              <div className="cart-row" key={p.id}>
+            {cart.items.map(({ id, product: p, quantity, seller_name }) => (
+              <div className="cart-row" key={id}>
                 <div className="cart-product-image">
                   <ProductImage product={p} />
                 </div>
@@ -93,6 +93,7 @@ export default function CartPage() {
                   <Link href={`/products/${p.slug}`}>
                     <h3>{p.title}</h3>
                   </Link>
+                  {seller_name && <p>فروشنده: {seller_name}</p>}
                   <p>
                     {number(quantity)} عدد ·{" "}
                     {p.price !== null
@@ -104,7 +105,7 @@ export default function CartPage() {
                   disabled={busy}
                   className="icon-button"
                   aria-label={`حذف ${p.title}`}
-                  onClick={() => remove(p.id)}
+                  onClick={() => remove(id)}
                 >
                   <Trash2 size={18} />
                 </button>

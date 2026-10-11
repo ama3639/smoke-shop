@@ -1,6 +1,6 @@
 # docs/README.md — فهرست و نقشه مستندات
 
-> **نسخه:** 0.6.2
+> **نسخه:** 0.7.0
 > **تاریخ:** 2026-10-11
 > **به‌روزرسانی شود:** با افزودن یا حذف هر سند
 
@@ -85,7 +85,6 @@ smokeshop/
 - `docs/architecture/GUARDRAILS.md` — مستندات گاردریل‌ها
 
 ### API (فاز یک)
-- `docs/api/CATALOG_API.md` — مستندات REST API کاتالوگ
 - `docs/api/CART_API.md` — مستندات API سبد خرید
 - `docs/api/HEALTH_API.md` — مستندات API عامل سلامت
 - `docs/api/ADMIN_API.md` — مستندات API پنل مدیریتی
@@ -95,8 +94,7 @@ smokeshop/
 - `docs/deployment/PRODUCTION.md` — راهنمای Production
 - `docs/deployment/BACKUP_RECOVERY.md` — پشتیبان‌گیری و بازیابی
 
-### راهنماهای کاربری (فاز یک)
-- `docs/user/ADMIN_GUIDE.md` — راهنمای پنل مدیریتی
+### راهنماهای کاربری آینده
 - `docs/user/LEGAL_COMPLIANCE.md` — راهنمای انطباق حقوقی
 - `docs/user/SKU_CLASSIFICATION.md` — راهنمای طبقه‌بندی SKU
 
@@ -114,3 +112,13 @@ smokeshop/
 ## کاتالوگ تصویری جاری
 
 [نگاشت ۱۴ تصویر وینستون و روش نگهداری](catalog/PRODUCT_IMAGES.md) شامل نام مدل‌ها، فایل‌های اصلی/سبک، اتصال به داده و روش به‌روزرسانی است.
+
+
+## مستندات اجرایی 0.7.0
+
+- [ADMIN_GUIDE](user/ADMIN_GUIDE.md) — نقش‌ها، اعضای فروشنده، عرضه مستقل، لغو و انقضا.
+- [CATALOG_API](api/CATALOG_API.md) — facets، صفحه‌بندی، انتخاب عرضه و قرارداد سازگار سبد.
+- [PRODUCT_DATA](catalog/PRODUCT_DATA.md) — منابع بررسی‌شده و مشخصات تکمیل‌نشده.
+- [HOMEPAGE_IMAGE](catalog/HOMEPAGE_IMAGE.md) — عکس کامل موبایل/دسکتاپ و تعویض دارایی.
+
+بخش‌های «برنامه‌ریزی‌شده» و اسناد معماری جامع، اجراشده تلقی نمی‌شوند. وضعیت کد در PROJECT_CONTEXT ثبت است.

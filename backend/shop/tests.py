@@ -339,3 +339,231 @@ class ConcurrentCheckoutTests(TransactionTestCase):
         self.assertEqual(results[0], results[1])
         self.assertEqual(Order.objects.count(), 1)
         self.assertEqual(StockLedger.objects.count(), 1)
+
+
+    def prepare_offer(self):
+        from .models import Offer, Vendor
+        vendor = Vendor.objects.create(title='Seller', slug='seller', active=True)
+        offer = Offer.objects.create(product=self.product, vendor=vendor, stock=1, price=150, approved=True)
+        CartItem.objects.update(offer=offer)
+        return offer
+
+    def test_two_carts_cannot_reserve_last_seller_item(self):
+        offer = self.prepare_offer()
+        results = self.run_parallel([c.pk for c in self.carts], [uuid.uuid4(), uuid.uuid4()])
+        self.assertEqual(results.count('OUT_OF_STOCK'), 1)
+        self.assertEqual(Order.objects.count(), 1)
+        offer.refresh_from_db()
+        self.product.refresh_from_db()
+        self.assertEqual(offer.stock, 0)
+        self.assertEqual(self.product.stock, 1)
+
+    def test_same_cart_concurrent_offer_retries_reserve_once(self):
+        self.prepare_offer()
+        key = uuid.uuid4()
+        results = self.run_parallel([self.carts[0].pk] * 2, [key, key])
+        self.assertEqual(results[0], results[1])
+        self.assertEqual(StockLedger.objects.count(), 1)
+
+    def test_concurrent_cancellation_restores_seller_stock_once(self):
+        from .services import cancel_reservation
+        offer = self.prepare_offer()
+        order = checkout(self.carts[0], uuid.uuid4())
+        barrier = Barrier(2)
+        def cancel(index):
+            try:
+                barrier.wait(timeout=10)
+                return cancel_reservation(order.pk)
+            finally:
+                connections['default'].close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(cancel, range(2)))
+        self.assertEqual(sorted(results), [False, True])
+        offer.refresh_from_db()
+        self.assertEqual(offer.stock, 1)
+        self.assertEqual(StockLedger.objects.count(), 2)
+
+class MarketplaceTests(TestCase):
+    def setUp(self):
+        from .models import Offer, Vendor
+        self.category = Category.objects.create(title='ابزار', slug='tools', online_enabled=True)
+        self.product = Product.objects.create(title='کیف', slug='case', sku='CASE', category=self.category,
+            price=999, stock=99, legal_status='APPROVED_ONLINE', legal_reference='test')
+        self.vendors = [Vendor.objects.create(title=f'فروشنده {i}', slug=f'vendor-{i}', active=True) for i in range(2)]
+        self.offers = [Offer.objects.create(product=self.product, vendor=v, price=100 + i * 50, stock=3, approved=True)
+                       for i, v in enumerate(self.vendors)]
+        for key in ['cart', 'order_requests']:
+            FeatureFlag.objects.create(key=key, is_enabled=True)
+        self.client.post('/api/v1/session/', {'adult': True}, content_type='application/json')
+
+    def add_offer(self, offer, quantity=1):
+        return self.client.post('/api/v1/cart/', {'product_id': offer.product_id, 'offer_id': offer.pk, 'quantity': quantity}, content_type='application/json')
+
+    def test_every_product_and_brand_is_reachable_beyond_one_hundred(self):
+        Product.objects.bulk_create([Product(title=f'Item {i}', slug=f'item-{i}', sku=f'SKU-{i}', category=self.category,
+            brand='Last Brand' if i == 120 else 'First Brand', legal_status='CATALOG_ONLY') for i in range(121)])
+        ids = []
+        for page in range(1, 7):
+            data = self.client.get('/api/v1/catalog/products/', {'pagination': '1', 'page_size': 24, 'page': page}).json()['data']
+            ids.extend(p['id'] for p in data['items'])
+            self.assertEqual(data['total'], 122)
+        self.assertEqual(len(set(ids)), 122)
+        self.assertIn('Last Brand', self.client.get('/api/v1/catalog/').json()['data']['brands'])
+        self.assertEqual(len(self.client.get('/api/v1/catalog/products/', {'brand': 'Last Brand'}).json()['data']), 1)
+
+    def test_pagination_rejects_invalid_values(self):
+        for params in [{'page': 'no'}, {'page': 0}, {'page_size': 0}, {'page_size': 101}]:
+            self.assertEqual(self.client.get('/api/v1/catalog/products/', params).status_code, 400)
+
+    def test_hidden_items_do_not_leak_facets(self):
+        category = Category.objects.create(title='Secret', slug='secret')
+        Product.objects.create(title='Hidden', slug='hidden', sku='HIDDEN', category=category, brand='Secret', legal_status='BLOCKED')
+        data = self.client.get('/api/v1/catalog/').json()['data']
+        self.assertNotIn('Secret', data['brands'])
+        self.assertNotIn('secret', [c['slug'] for c in data['categories']])
+
+    def test_offer_policy_filters_stock_and_vendor(self):
+        self.offers[0].approved = False
+        self.offers[0].save()
+        self.assertEqual(self.client.get('/api/v1/catalog/products/', {'vendor': 'vendor-0'}).json()['data'], [])
+        self.vendors[1].active = False
+        self.vendors[1].save()
+        data = self.client.get('/api/v1/catalog/products/case/').json()['data']
+        self.assertEqual(data['offers'], [])
+        self.assertFalse(data['purchasable'])
+        self.assertEqual(data['stock'], 0)
+        self.assertEqual(self.add_offer(self.offers[0]).status_code, 403)
+
+    def test_tobacco_stays_catalog_only_despite_misconfigured_approval(self):
+        self.product.product_type = 'tobacco'
+        with self.assertRaises(ValidationError):
+            self.product.full_clean()
+        self.product.save()
+        data = self.client.get('/api/v1/catalog/products/case/').json()['data']
+        self.assertIsNone(data['price'])
+        self.assertTrue(all(o['price'] is None for o in data['offers']))
+        self.assertEqual(self.add_offer(self.offers[0]).status_code, 403)
+
+    def test_two_sellers_reserve_separate_stock_and_snapshot_names(self):
+        from .models import Offer, OrderItem
+        for offer in self.offers:
+            self.assertEqual(self.add_offer(offer, 2).status_code, 200)
+        self.assertEqual(CartItem.objects.count(), 2)
+        key = str(uuid.uuid4())
+        first = self.client.post('/api/v1/orders/', {'idempotency_key': key}, content_type='application/json')
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(first.json()['data']['total'], 500)
+        self.assertEqual(self.client.post('/api/v1/orders/', {'idempotency_key': key}, content_type='application/json').json(), first.json())
+        self.assertEqual(list(Offer.objects.order_by('pk').values_list('stock', flat=True)), [1, 1])
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 99)
+        self.assertEqual(set(OrderItem.objects.values_list('seller_name', flat=True)), {'فروشنده 0', 'فروشنده 1'})
+
+    def test_expiry_releases_each_seller_stock_exactly_once(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import Offer
+        self.add_offer(self.offers[0], 2)
+        order = checkout(Cart.objects.get(), uuid.uuid4())
+        Order.objects.filter(pk=order.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+        for _ in range(2):
+            call_command('expire_orders', stdout=io.StringIO())
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'EXPIRED')
+        self.assertEqual(Offer.objects.get(pk=self.offers[0].pk).stock, 3)
+        self.assertEqual(StockLedger.objects.count(), 2)
+
+    def test_delete_one_offer_keeps_other_seller_and_other_cart_private(self):
+        for offer in self.offers:
+            self.add_offer(offer)
+        item = CartItem.objects.first()
+        other = Client()
+        other.delete('/api/v1/cart/', {'item_id': item.pk}, content_type='application/json')
+        self.assertEqual(CartItem.objects.count(), 2)
+        self.client.delete('/api/v1/cart/', {'item_id': item.pk}, content_type='application/json')
+        self.assertEqual(CartItem.objects.count(), 1)
+
+    def test_seller_admin_cannot_view_other_offers_or_approve_own_offer(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+        from .admin import OfferAdmin, SellerOrderItemAdmin
+        from .models import Offer, OrderItem
+        call_command('seed_roles', stdout=io.StringIO())
+        from django.contrib.auth.models import Group
+        seller = User.objects.create_user('seller', is_staff=True)
+        seller.groups.add(Group.objects.get(name='Seller'))
+        self.vendors[0].members.add(seller)
+        request = RequestFactory().get('/')
+        request.user = seller
+        offer_admin = OfferAdmin(Offer, AdminSite())
+        self.assertEqual(list(offer_admin.get_queryset(request)), [self.offers[0]])
+        self.assertIn('approved', offer_admin.get_readonly_fields(request, self.offers[0]))
+        form = offer_admin.get_form(request, self.offers[0])
+        self.assertNotIn('approved', form.base_fields)
+        self.assertNotIn('vendor', form.base_fields)
+        self.add_offer(self.offers[0])
+        self.add_offer(self.offers[1])
+        checkout(Cart.objects.get(), uuid.uuid4())
+        rows = SellerOrderItemAdmin(OrderItem, AdminSite()).get_queryset(request)
+        self.assertEqual(rows.count(), 1)
+        self.assertEqual(rows.get().offer_id, self.offers[0].pk)
+        self.client.force_login(seller)
+        response = self.client.get(f'/admin/shop/offer/{self.offers[1].pk}/change/')
+        self.assertNotEqual(response.status_code, 200)
+        response = self.client.post('/admin/shop/offer/add/', {
+            'vendor': self.vendors[1].pk, 'product': self.product.pk, 'seller_sku': 'FORGED',
+            'price': 1, 'stock': 1, 'active': 'on', 'approved': 'on', 'retail_available': 'on',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('vendor', response.context['adminform'].form.errors)
+
+    def test_source_enrichment_preserves_unknown_counts_and_seller_edits(self):
+        call_command('seed_demo', stdout=io.StringIO())
+        p = Product.objects.get(slug='winston-red')
+        self.assertEqual(p.source_url, 'https://www.jti.com/en/our-brands')
+        self.assertIsNone(p.sticks_per_pack)
+        p.source_url = 'https://example.com/seller'
+        p.save()
+        call_command('seed_demo', stdout=io.StringIO())
+        p.refresh_from_db()
+        self.assertEqual(p.source_url, 'https://example.com/seller')
+
+    def test_catalog_serialization_queries_are_bounded(self):
+        from django.test.utils import CaptureQueriesContext
+        Product.objects.bulk_create([Product(title=f'Accessory {i}', slug=f'accessory-{i}', sku=f'AC-{i}',
+            category=self.category, legal_status='APPROVED_ONLINE', legal_reference='test', price=10) for i in range(45)])
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get('/api/v1/catalog/products/', {'pagination': '1', 'page_size': 50})
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(queries), 9)
+
+    def test_available_filter_uses_the_same_offer_as_sale_mode(self):
+        self.offers[0].stock = 0
+        self.offers[0].save()
+        self.offers[1].retail_available = False
+        self.offers[1].wholesale_available = True
+        self.offers[1].save()
+        params = {'mode': 'retail', 'available': '1'}
+        self.assertEqual(self.client.get('/api/v1/catalog/products/', params).json()['data'], [])
+        params['mode'] = 'wholesale'
+        data = self.client.get('/api/v1/catalog/products/', params).json()['data']
+        self.assertEqual(len(data), 1)
+        self.assertTrue(data[0]['wholesale_available'])
+
+    def test_order_operator_sees_all_lines_and_inventory_without_offer_editing(self):
+        from django.contrib.admin.sites import AdminSite
+        from django.contrib.auth.models import Group
+        from django.test import RequestFactory
+        from .admin import SellerOrderItemAdmin, LedgerAdmin, OfferAdmin
+        from .models import OrderItem, Offer
+        call_command('seed_roles', stdout=io.StringIO())
+        operator = User.objects.create_user('operator', is_staff=True)
+        operator.groups.add(Group.objects.get(name='Order operator'))
+        for offer in self.offers:
+            self.add_offer(offer)
+        checkout(Cart.objects.get(), uuid.uuid4())
+        request = RequestFactory().get('/')
+        request.user = operator
+        self.assertEqual(SellerOrderItemAdmin(OrderItem, AdminSite()).get_queryset(request).count(), 2)
+        self.assertEqual(LedgerAdmin(StockLedger, AdminSite()).get_queryset(request).count(), 2)
+        self.assertFalse(OfferAdmin(Offer, AdminSite()).has_change_permission(request))

@@ -5,7 +5,7 @@ export function Header() {
   return (
     <>
       <div className="announcement">
-        اسموک‌شاپ / کاتالوگ سیگار{" "}
+        اسموک‌شاپ / کاتالوگ چندفروشنده{" "}
         <span>اطلاعات عرضه حضوری عمده و تکی · ۱۸+</span>
       </div>
       <header className="header">
@@ -15,14 +15,15 @@ export function Header() {
               <ScanLine size={23} strokeWidth={1.5} />
             </span>
             <span>
-              اسموک‌شاپ<small>SMOKESHOP / TOBACCO CATALOG</small>
+              اسموک‌شاپ<small>SMOKESHOP / CATALOG</small>
             </span>
           </Link>
           <nav aria-label="منوی اصلی">
-            <Link href="/#catalog">کاتالوگ وینستون</Link>
+            <Link href="/#catalog">همه کالاها</Link>
             <Link href="/#wholesale">همکاری عمده</Link>
             <Link href="/guide">واحدهای عرضه</Link>
             <Link href="/branches">شعب حضوری</Link>
+            <Link href="/sellers">فروشندگان</Link>
           </nav>
           <Link href="/cart" className="cart-link">
             <ShoppingBag size={19} />
@@ -39,7 +40,7 @@ export function Footer() {
       <div className="container footer-top">
         <div>
           <Link className="footer-brand" href="/">
-            اسموک‌شاپ<span>کاتالوگ سیگار / عمده و تکی</span>
+            اسموک‌شاپ<span>کاتالوگ کالا / عمده و تکی</span>
           </Link>
           <p>
             معرفی مدل‌ها، بسته‌بندی و اطلاعات همکاری با فروشگاه‌ها و مراکز پخش.
@@ -49,8 +50,9 @@ export function Footer() {
         <div>
           <h3>مسیرهای دسترسی</h3>
           <Link href="/#catalog">
-            کاتالوگ وینستون <ArrowUpLeft size={15} />
+            همه کالاها <ArrowUpLeft size={15} />
           </Link>
+          <Link href="/sellers">فروشندگان <ArrowUpLeft size={15} /></Link>
           <Link href="/#wholesale">
             همکاری عمده <ArrowUpLeft size={15} />
           </Link>

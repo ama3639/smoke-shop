@@ -10,12 +10,16 @@ export default function Purchase({ product }: { product: Product }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [added, setAdded] = useState(false);
+  const [offerId, setOfferId] = useState<number | undefined>(() => (product.offers.find(o => o.purchasable && o.stock > 0) || product.offers.find(o => o.purchasable))?.id);
+  const offer = product.offers.find(o => o.id === offerId);
+  const stock = offer ? offer.stock : product.stock;
+  const price = offer ? offer.price : product.price;
   async function add() {
     setBusy(true);
     setMessage("");
     try {
       await mutate("session/", { adult });
-      await mutate("cart/", { product_id: product.id, quantity });
+      await mutate("cart/", { product_id: product.id, offer_id: offerId, quantity });
       setAdded(true);
       setMessage("کالا به سبد خرید اضافه شد.");
     } catch (e) {
@@ -33,7 +37,7 @@ export default function Purchase({ product }: { product: Product }) {
             : "فقط کاتالوگ"}
         </span>
         <h3>
-          {product.product_type === "cigarette"
+          {['cigarette', 'tobacco'].includes(product.product_type)
             ? "معرفی عرضه تکی و عمده حضوری"
             : "مشخصات برای بررسی، عرضه پس از تأیید."}
         </h3>
@@ -48,14 +52,19 @@ export default function Purchase({ product }: { product: Product }) {
     );
   return (
     <div className="purchase-box">
-      <h3>{money(product.price || 0)}</h3>
+      <h3>{money(price || 0)}</h3>
+      {product.offers.length > 0 && <label className="quantity-field">فروشنده
+        <select aria-label="انتخاب فروشنده" value={offerId} onChange={e => { setOfferId(Number(e.target.value)); setQuantity(1); setAdded(false); }}>
+          {product.offers.filter(o => o.purchasable).map(o => <option key={o.id} value={o.id}>{o.vendor} — {money(o.price || 0)}</option>)}
+        </select>
+      </label>}
       <label className="quantity-field">
         تعداد{" "}
         <input
           aria-label="تعداد"
           type="number"
           min="1"
-          max={Math.min(20, product.stock)}
+          max={Math.min(20, stock)}
           value={quantity}
           onChange={(e) => setQuantity(Number(e.target.value))}
         />
@@ -70,11 +79,11 @@ export default function Purchase({ product }: { product: Product }) {
       </label>
       <button
         className="button primary"
-        disabled={busy || !adult || !product.stock || quantity < 1}
+        disabled={busy || !adult || !stock || !Number.isInteger(quantity) || quantity < 1 || quantity > Math.min(20, stock)}
         onClick={add}
       >
         <ShoppingBag size={18} />
-        {busy ? "در حال افزودن…" : product.stock ? "افزودن به سبد" : "ناموجود"}
+        {busy ? "در حال افزودن…" : stock ? "افزودن به سبد" : "ناموجود"}
       </button>
       {message && <p role="status">{message}</p>}
       {added && (

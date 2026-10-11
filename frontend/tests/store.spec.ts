@@ -4,7 +4,7 @@ test("all fourteen seller photos load as full-frame product images", async ({
   page,
 }) => {
   await page.goto("/");
-  const cards = page.locator(".product-card");
+  const cards = page.locator(".product-card").filter({ has: page.locator(".product-pack-photo") });
   await expect(cards).toHaveCount(14);
   await expect(cards.locator(".catalog-pack-art")).toHaveCount(0);
   const urls = new Set<string>();
@@ -40,8 +40,8 @@ test("all fourteen seller photos load as full-frame product images", async ({
 test("RTL, local font, catalog and normalized search", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("سیگار");
-  await expect(page.locator(".product-card")).toHaveCount(14);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("کاتالوگ");
+  await expect(page.locator(".product-card")).toHaveCount(15);
   await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كامپكت");
   await expect(page.locator(".product-card")).toHaveCount(2);
   await page.evaluate(() => document.fonts.ready);
@@ -65,7 +65,7 @@ test("category, brand and retail/wholesale filters show relevant models", async 
   await page.getByRole("button", { name: "عمده / باکس", exact: true }).click();
   await expect(page.locator(".product-card")).toHaveCount(13);
   await page.getByRole("button", { name: "تکی / بسته", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(13);
+  await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByLabel("فیلتر برند").selectOption("Winston");
   await expect(page.locator(".product-card")).toHaveCount(13);
 });
@@ -139,92 +139,52 @@ test("empty cart and branches are honest and keyboard navigation works", async (
   });
 });
 
-test("smoke follows scroll across the whole page and freezes when paused", async ({
-  page,
-}) => {
+test("hero motion stays local, does not load smoke films, and can be paused", async ({ page }) => {
+  const films: string[] = [];
+  page.on("request", r => { if (/homepage-smoke\.(mp4|webm)/.test(r.url())) films.push(r.url()); });
   await page.goto("/");
-  const layer = page.locator(".homepage-smoke");
-  const video = layer.locator("video");
-  const visual = page.locator(".scene-hero-visual");
-  await expect(layer).toHaveAttribute("aria-hidden", "true");
-  expect(await layer.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe(
-    "none",
-  );
-  expect(await layer.evaluate((el) => getComputedStyle(el).position)).toBe(
-    "fixed",
-  );
-  await expect
-    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).duration))
-    .toBeGreaterThan(30);
-  const initialVisual = await visual.evaluate(
-    (el) => getComputedStyle(el).transform,
-  );
-  await page.evaluate(() => scrollTo(0, Math.round(innerHeight * 0.65)));
-  await expect
-    .poll(() => visual.evaluate((el) => getComputedStyle(el).transform))
-    .not.toBe(initialVisual);
-  await expect
-    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
-    .toBeGreaterThan(1);
-  await page.locator(".trade-details").scrollIntoViewIfNeeded();
-  await expect
-    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
-    .toBeGreaterThan(20);
-  expect(await layer.evaluate((el) => el.getBoundingClientRect().top)).toBe(0);
-  await expect
-    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).readyState))
-    .toBeGreaterThanOrEqual(2);
+  await expect(page.locator(".homepage-smoke, .homepage-smoke video")).toHaveCount(0);
+  const atmosphere = page.locator(".hero-atmosphere");
+  await expect(atmosphere).toHaveAttribute("data-motion", "ambient");
+  expect(await atmosphere.evaluate(el => getComputedStyle(el).pointerEvents)).toBe("none");
+  expect(await atmosphere.evaluate(el => getComputedStyle(el).position)).toBe("absolute");
   await page.getByRole("button", { name: "توقف حرکت" }).click();
-  await expect(layer).toHaveAttribute("data-motion", "paused");
-  await expect
-    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).seeking))
-    .toBe(false);
-  const pausedTime = await video.evaluate(
-    (el) => (el as HTMLVideoElement).currentTime,
-  );
-  await page.locator(".trade-details").scrollIntoViewIfNeeded();
-  await expect
-    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
-    .toBe(pausedTime);
-  await expect(page.locator(".cigarette-hero")).toHaveClass(/scene-static/);
-  await page.getByRole("button", { name: "حرکت متوقف است" }).click();
-  await expect(layer).toHaveAttribute("data-motion", "scroll");
-  await page.locator(".trade-details").scrollIntoViewIfNeeded();
-  await expect
-    .poll(() => video.evaluate((el) => (el as HTMLVideoElement).currentTime))
-    .toBeGreaterThan(20);
+  await expect(atmosphere).toHaveAttribute("data-motion", "paused");
+  expect(await atmosphere.locator("svg").evaluate(el => getComputedStyle(el).animationPlayState)).toBe("paused");
+  expect(films).toEqual([]);
 });
 
-test("reduced motion uses a static smoke poster without downloading the film", async ({
-  page,
-}) => {
-  const filmRequests: string[] = [];
-  page.on("request", (request) => {
-    if (/homepage-smoke\.(mp4|webm)/.test(request.url()))
-      filmRequests.push(request.url());
-  });
+test("reduced motion keeps the hero static without a film or blur overlay", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.locator(".cigarette-hero")).toHaveClass(/scene-static/);
-  await expect(page.locator(".homepage-smoke video")).toHaveCount(0);
-  await expect(page.locator(".homepage-smoke img")).toBeVisible();
-  expect(filmRequests).toEqual([]);
-  await expect(
-    page.getByRole("button", { name: "حرکت متوقف است" }),
-  ).toBeDisabled();
-  await page.evaluate(() => scrollTo(0, 400));
-  expect(
-    await page
-      .locator(".cigarette-hero")
-      .evaluate((el) =>
-        Number(getComputedStyle(el).getPropertyValue("--scene-progress")),
-      ),
-  ).toBe(0);
-  expect(
-    await page
-      .locator(".homepage-smoke img")
-      .evaluate((el) => getComputedStyle(el).transform),
-  ).not.toBe("none");
+  await expect(page.locator(".hero-atmosphere")).toHaveAttribute("data-motion", "paused");
+  await expect(page.getByRole("button", { name: "حرکت متوقف است" })).toBeDisabled();
+  expect(await page.locator(".hero-atmosphere svg").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
+  await expect(page.locator(".homepage-smoke, video")).toHaveCount(0);
+});
+
+test("all product types, seller directory and seller selection work", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "اکسسوری", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "همه کالاها", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(15);
+  await page.getByLabel("فیلتر فروشنده").selectOption("e2e-two");
+  await expect(page.locator(".product-card")).toHaveCount(1);
+  await page.locator(".product-card").click();
+  await expect(page.getByRole("heading", { name: "فروشندگان این کالا" })).toBeVisible();
+  await page.getByLabel("انتخاب فروشنده").selectOption({ label: "فروشنده آزمون دو — ۱۳۵٬۰۰۰ تومان" });
+  await page.getByRole("checkbox", { name: /۱۸ سال/ }).check();
+  await page.getByRole("button", { name: "افزودن به سبد" }).click();
+  await page.getByRole("link", { name: /مشاهده سبد/ }).click();
+  await expect(page.getByText("فروشنده: فروشنده آزمون دو")).toBeVisible();
+  await page.getByRole("button", { name: "ثبت درخواست سفارش" }).click();
+  await page.getByRole("link", { name: "مشاهده وضعیت سفارش" }).click();
+  await expect(page.getByText("فروشنده: فروشنده آزمون دو")).toBeVisible();
+  await page.goto("/sellers");
+  await expect(page.locator(".seller-directory .branch-card")).toHaveCount(2);
+  await page.getByRole("link", { name: "مشاهده کالاهای فروشنده" }).last().click();
+  await expect(page.locator(".product-card")).toHaveCount(1);
 });
 
 test("product photos stay intact on hover and open details with one click or tap", async ({
@@ -274,4 +234,33 @@ test("keyboard focus keeps the packet closed and Enter opens details", async ({
   ).toHaveCount(0);
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/products\/winston-silver$/);
+});
+
+test("responsive hero and catalog stay readable at narrow, tablet and wide widths", async ({ page }) => {
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await expect(page.locator(".product-card")).toHaveCount(15);
+    await expect(page.getByRole("navigation", {name: "منوی اصلی"})).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    const title = await page.locator("h1").boundingBox();
+    const image = await page.locator(".scene-hero-image").boundingBox();
+    expect(title).not.toBeNull(); expect(image).not.toBeNull();
+    if (title && image) {
+      expect(title.x).toBeGreaterThanOrEqual(0);
+      expect(title.x + title.width).toBeLessThanOrEqual(width);
+      if (width <= 740) expect(image.y).toBeGreaterThan(title.y + title.height);
+      else expect(image.x + image.width).toBeLessThanOrEqual(title.x + 12);
+    }
+    if (process.env.VISUAL_REVIEW_PATH) {
+      await page.screenshot({path: `${process.env.VISUAL_REVIEW_PATH}/home-${width}.png`});
+      await page.locator(".catalog-heading").scrollIntoViewIfNeeded();
+      await page.evaluate(async () => {
+        await Promise.all(Array.from(document.querySelectorAll<HTMLImageElement>(".product-pack-photo")).map(img => img.decode().catch(() => {})));
+      });
+      await page.locator(".catalog-heading").evaluate(el => el.getAnimations({subtree: true}).forEach(a => a.finish()));
+      await page.screenshot({path: `${process.env.VISUAL_REVIEW_PATH}/catalog-${width}.png`});
+    }
+  }
 });

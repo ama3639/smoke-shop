@@ -103,6 +103,20 @@ export default async function ProductPage({
             </div>
           </dl>
           <Purchase product={p} />
+          {p.offers.length > 0 && <section className="seller-offers" aria-label="عرضه فروشندگان">
+            <h2>فروشندگان این کالا</h2>
+            {p.offers.map(o => <div className="seller-offer" key={o.id}>
+              <div className="seller-offer-top"><strong>{o.vendor}</strong><span>{o.city || "شهر ثبت نشده"}</span></div>
+              <p>{o.retail_available ? "تکی" : ""}{o.retail_available && o.wholesale_available ? " و " : ""}{o.wholesale_available ? "عمده" : ""} · {o.stock > 0 ? "موجودی ثبت‌شده" : "بدون موجودی ثبت‌شده"}</p>
+              {o.phone && <a href={`tel:${o.phone}`} dir="ltr">{o.phone}</a>}
+            </div>)}
+          </section>}
+          {p.source_url && <div className="source-note">
+            <strong>{p.manufacturer}</strong>
+            <p>{p.specification_notes}</p>
+            <a href={p.source_url} target="_blank" rel="noopener noreferrer">منبع اطلاعات</a>
+            {p.source_checked_on && <p>بررسی منبع: {new Date(p.source_checked_on).toLocaleDateString("fa-IR")}</p>}
+          </div>}
         </div>
       </div>
       {p.product_type !== "cigarette" && (

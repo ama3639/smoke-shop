@@ -23,7 +23,12 @@ export type Product = {
   purchasable: boolean;
   compatibility: Compatibility[];
   updated_at: string;
-  product_type: "accessory" | "cigarette";
+  product_type: "accessory" | "cigarette" | "tobacco" | "other";
+  manufacturer: string;
+  source_url: string;
+  source_checked_on: string | null;
+  specification_notes: string;
+  offers: Offer[];
   brand: string;
   sticks_per_pack: number | null;
   packs_per_carton: number | null;
@@ -34,9 +39,21 @@ export type Catalog = {
   categories: { title: string; slug: string }[];
   devices: { title: string; slug: string }[];
   checkout_enabled: boolean;
+  brands: string[];
+  types: { value: string; title: string }[];
+  vendors: { title: string; slug: string }[];
+  total: number;
+  updated_at: string | null;
 };
+export type Offer = {
+  id: number; vendor: string; vendor_slug: string; city: string; phone: string;
+  stock: number; price: number | null; purchasable: boolean;
+  retail_available: boolean; wholesale_available: boolean; updated_at: string;
+};
+export type ProductPage = { items: Product[]; total: number; page: number; page_size: number; pages: number; has_next: boolean };
+export type Vendor = { title: string; slug: string; city: string; address: string; phone: string; description: string };
 export type Cart = {
-  items: { product: Product; quantity: number }[];
+  items: { id: number; product: Product; quantity: number; offer_id: number | null; seller_name: string }[];
   total: number;
   checkout_enabled: boolean;
   latest_order_id: string | null;

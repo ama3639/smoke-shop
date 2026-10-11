@@ -336,7 +336,7 @@ test("global search and brand/category deep links preserve initial filters", asy
   await expect(page.locator(".product-card")).toHaveCount(2);
   await page.goto("/catalog?type=cigarette&brand=Winston&category=xs");
   await expect(page.locator(".product-card")).toHaveCount(3);
-  await expect(page.getByLabel("فیلتر برند")).toHaveValue("Winston");
+  await expect(page.getByLabel("فیلتر برند", { exact: true })).toHaveValue("Winston");
   await page.getByRole("button", { name: "حذف فیلتر دسته" }).click();
   await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByRole("button", { name: "پاک کردن همه فیلترها" }).click();
@@ -378,7 +378,7 @@ test("age gate denies underage entry and offers a neutral exit", async ({ page }
   await page.goto("/");
   await page.getByRole("button", { name: "زیر ۱۸ سال دارم", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("زیر ۱۸ سال");
+  await expect(page.getByRole("dialog").getByRole("status")).toContainText("زیر ۱۸ سال");
   await expect(page.getByRole("button", { name: "۱۸ سال یا بیشتر دارم", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "خروج از سایت", exact: true }).click();
   await expect(page).toHaveURL("about:blank");

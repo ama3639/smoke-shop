@@ -145,6 +145,11 @@ test("empty cart and branches are honest and keyboard navigation works", async (
     await expect.poll(() => photo.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   }
   await page.evaluate(() => window.scrollTo(0, 0));
+  const copy = await page.locator(".cigarette-hero-copy").boundingBox();
+  const controls = await page.locator(".scene-bottom").boundingBox();
+  expect(copy).not.toBeNull();
+  expect(controls).not.toBeNull();
+  expect(copy!.y + copy!.height).toBeLessThan(controls!.y);
   await page.screenshot({
     path: `test-results/home-${test.info().project.name}.png`,
     fullPage: true,

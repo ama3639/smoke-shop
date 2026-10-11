@@ -20,7 +20,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'slug', 'sku', 'category', 'category_title', 'description', 'material',
                   'dimensions', 'illustration', 'image', 'price', 'stock', 'legal_status', 'purchasable', 'compatibility', 'updated_at',
                   'product_type', 'brand', 'sticks_per_pack', 'packs_per_carton', 'retail_available', 'wholesale_available',
-                  'manufacturer', 'source_url', 'source_checked_on', 'specification_notes', 'offers']
+                  'flavor', 'weight_grams', 'manufacturer', 'source_url', 'source_checked_on', 'specification_notes', 'offers']
 
     def public_offers(self, obj):
         return [offer for offer in obj.offers.all() if offer.active and offer.approved and offer.vendor.active]
@@ -65,3 +65,4 @@ class ProductSerializer(serializers.ModelSerializer):
         return [{'model': rule.device.title, 'confidence': rule.confidence, 'source': rule.evidence_source,
                  'verified': rule.last_verified.isoformat(), 'incompatible': rule.is_incompatible}
                 for rule in obj.compatibility.all()]
+

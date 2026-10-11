@@ -200,7 +200,7 @@ test("all product types, seller directory and seller selection work", async ({ p
   await page.getByRole("button", { name: "اکسسوری", exact: true }).click();
   await expect(page.locator(".product-card")).toHaveCount(1);
   await page.getByRole("button", { name: "همه کالاها", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(15);
+  await expect(page.locator(".product-card")).toHaveCount(18);
   await page.getByLabel("فیلتر فروشنده").selectOption("e2e-two");
   await expect(page.locator(".product-card")).toHaveCount(1);
   await page.locator(".product-card").click();
@@ -312,17 +312,17 @@ test("accessories move off the homepage and remain available in the full catalog
     await page.screenshot({path: `${process.env.VISUAL_REVIEW_PATH}/accessories-${test.info().project.name}.png`});
   }
   await page.getByRole("button", {name: "همه کالاها", exact: true}).click();
-  await expect(page.locator(".product-card")).toHaveCount(15);
+  await expect(page.locator(".product-card")).toHaveCount(18);
   await page.getByLabel("جست‌وجوی کالا").fill("does-not-exist");
   await expect(page.locator(".product-card")).toHaveCount(0);
   await page.getByRole("button", {name: "پاک کردن فیلترها"}).click();
-  await expect(page.locator(".product-card")).toHaveCount(15);
+  await expect(page.locator(".product-card")).toHaveCount(18);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });
 
 test("category discovery uses real catalog routes and missing categories stay empty", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".discovery-card")).toHaveCount(4);
+  await expect(page.locator(".discovery-card")).toHaveCount(6);
   await expect(page.getByRole("link", { name: "دسته سیگار", exact: true })).toHaveAttribute("href", "/catalog?type=cigarette");
   await expect(page.getByRole("link", { name: "دسته اکسسوری", exact: true })).toHaveAttribute("href", "/catalog?type=accessory");
   await page.getByRole("link", { name: "دسته ویپ و پاد", exact: true }).click();
@@ -331,7 +331,7 @@ test("category discovery uses real catalog routes and missing categories stay em
   await expect(page.getByRole("button", { name: "حذف فیلتر دسته" })).toContainText("ویپ و پاد");
   await expect(page.getByRole("heading", { name: "مدلی با این مشخصات پیدا نشد." })).toBeVisible();
   await page.getByRole("button", { name: "حذف فیلتر دسته" }).click();
-  await expect(page.locator(".product-card")).toHaveCount(15);
+  await expect(page.locator(".product-card")).toHaveCount(18);
   await page.goto("/catalog?category=pipe");
   await expect(page.locator(".product-card")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "حذف فیلتر دسته" })).toContainText("پیپ");
@@ -351,7 +351,7 @@ test("global search and brand/category deep links preserve initial filters", asy
   await page.getByRole("button", { name: "حذف فیلتر دسته" }).click();
   await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByRole("button", { name: "پاک کردن همه فیلترها" }).click();
-  await expect(page.locator(".product-card")).toHaveCount(15);
+  await expect(page.locator(".product-card")).toHaveCount(18);
   await expect(page.getByLabel("فیلتر برند", { exact: true })).toHaveValue("");
   await page.goto("/");
   await page.locator(".brand-index").getByRole("link", { name: "Winston", exact: true }).click();
@@ -393,4 +393,71 @@ test("age gate denies underage entry and offers a neutral exit", async ({ page }
   await expect(page.getByRole("button", { name: "۱۸ سال یا بیشتر دارم", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "خروج از سایت", exact: true }).click();
   await expect(page).toHaveURL("about:blank");
+});
+
+
+
+test("hookah entry stays honest and links to accessory catalog", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "دسته قلیان", exact: true }).click();
+  await expect(page).toHaveURL(/category=hookah/);
+  await expect(page.getByRole("heading", { name: "قلیان؛ مدل‌ها و ملزومات." })).toBeVisible();
+  await expect(page.locator(".product-card")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "حذف فیلتر دسته" })).toContainText("قلیان");
+  await page.getByRole("link", { name: "مرور اکسسوری", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(1);
+});
+
+test("tobacco flavor weight and brand compose, survive reload and clear", async ({ page }) => {
+  await page.goto("/catalog?type=tobacco");
+  await expect(page.locator(".product-card")).toHaveCount(3);
+  await page.getByLabel("فیلتر طعم", { exact: true }).selectOption("نعناع");
+  await expect(page.locator(".product-card")).toHaveCount(2);
+  await page.getByLabel("فیلتر وزن", { exact: true }).selectOption("250.00");
+  await expect(page.locator(".product-card")).toHaveCount(1);
+  await page.getByLabel("فیلتر برند", { exact: true }).selectOption("E2E Tobacco");
+  await expect(page.locator(".product-card")).toHaveCount(1);
+  await page.goto("/catalog?type=tobacco&flavor=" + encodeURIComponent("نعناع") + "&weight=250&brand=E2E%20Tobacco");
+  await page.reload();
+  await expect(page.locator(".product-card")).toHaveCount(1);
+  await expect(page.getByLabel("فیلتر طعم", { exact: true })).toHaveValue("نعناع");
+  await expect(page.getByRole("button", { name: "حذف فیلتر وزن" })).toContainText("۲۵۰ گرم");
+  await page.getByRole("button", { name: "حذف فیلتر وزن" }).click();
+  await expect(page.locator(".product-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "پاک کردن همه فیلترها" }).click();
+  await expect(page.locator(".product-card")).toHaveCount(18);
+  await expect(page.getByRole("button", { name: "حذف فیلتر طعم" })).toHaveCount(0);
+});
+
+test("tobacco details expose known specs without a purchase action", async ({ page }) => {
+  await page.goto("/products/e2e-mint-large");
+  await expect(page.locator(".spec-table")).toContainText("نعناع");
+  await expect(page.locator(".spec-table")).toContainText("۲۵۰ گرم");
+  await expect(page.getByRole("button", { name: "افزودن به سبد" })).toHaveCount(0);
+  await expect(page.locator(".compatibility-detail")).toHaveCount(0);
+});
+
+test("tobacco filters fit at 320px and show missing deep-link values honestly", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/catalog?type=tobacco&flavor=missing&weight=500");
+  await expect(page.locator(".product-card")).toHaveCount(0);
+  await expect(page.getByLabel("فیلتر طعم", { exact: true })).toHaveValue("missing");
+  await expect(page.getByLabel("فیلتر وزن", { exact: true })).toHaveValue("500");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.getByRole("button", { name: "سیگار", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(14);
+  await expect(page.getByLabel("فیلتر طعم", { exact: true })).toHaveCount(0);
+});
+
+
+test("editorial hero and six catalog entries stay visible and fit the viewport", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator(".scene-hero-image")).toBeVisible();
+  await expect(page.locator(".scene-collection-label")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.screenshot({ path: test.info().outputPath("editorial-home.png"), fullPage: true });
+  await page.goto("/catalog?type=tobacco");
+  await expect(page.getByLabel("فیلتر طعم", { exact: true })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("tobacco-catalog.png"), fullPage: true });
 });

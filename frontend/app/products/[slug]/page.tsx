@@ -97,6 +97,11 @@ export default async function ProductPage({
                 </div>
               </>
             )}
+            {p.product_type === "tobacco" && <>
+              <div><dt>برند</dt><dd>{p.brand || "ثبت نشده"}</dd></div>
+              <div><dt>طعم</dt><dd>{p.flavor || "ثبت نشده"}</dd></div>
+              <div><dt>وزن خالص</dt><dd>{p.weight_grams === null ? "ثبت نشده" : `${number(Number(p.weight_grams))} گرم`}</dd></div>
+            </>}
             <div>
               <dt>موجودی</dt>
               <dd>{p.stock > 0 ? "موجود" : "بدون موجودی ثبت‌شده"}</dd>
@@ -119,7 +124,7 @@ export default async function ProductPage({
           </div>}
         </div>
       </div>
-      {p.product_type !== "cigarette" && (
+      {p.product_type !== "cigarette" && p.product_type !== "tobacco" && (
         <section className="compatibility-detail">
           <div className="eyebrow">قبل از انتخاب بررسی کنید</div>
           <h2>سازگاری قطعه</h2>
@@ -153,3 +158,4 @@ export default async function ProductPage({
     </div>
   );
 }
+

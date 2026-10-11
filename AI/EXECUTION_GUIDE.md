@@ -300,3 +300,9 @@ smokeshop/
 ├── infra/                 ← Docker, Nginx, CI/CD
 └── tests/
 ```
+
+
+
+## تغییر اجرایی 0.9.0
+
+بعد از backup دیتابیس موجود، migrate برای 0006_tobacco_facets اجرا شود. این migration فقط فیلد اختیاری طعم/وزن می‌افزاید. دادهٔ تنباکو/قلیان را از ادمین و منبع واقعی ثبت کنید؛ اسکریپت E2E فقط دیتابیس موقت خودش را seed می‌کند. جهت طراحی DEC-028 و راهنمای pull/test در docs/deployment/PREMIUM_STOREFRONT.md است.

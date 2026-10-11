@@ -141,3 +141,9 @@ Product از Vendor/Offer مستقل؛ موجودی/قیمت همان عرضه �
 تست‌های واقعی: manage.py check، makemigrations --check --dry-run، manage.py test shop با PostgreSQL، npm run typecheck/build/test:e2e. زمان‌بند expire_orders به محیط واقعی خودکار اضافه نمی‌شود. انتشار با feature branch و PR، بدون merge/deploy خودکار.
 
 DEC-027 استثنای مجاز جلسه جاری است: مالک ادغام main و feature/catalog-marketplace را صریحاً درخواست کرد؛ PR #1 ادغام شده و ادامه در feature/premium-storefront است. بازطراحی جدید هنوز مجوز merge به main یا deploy تولید ندارد. هوم‌پیج ورودی چهار دسته دارد، ولی فهرست کالا همچنان فقط سیگار است. دروازه۱۸+ خوداظهاری نشست مرورگر است، نه احراز رسمی. دسته‌های pipe/vape-pod بدون داده واقعی خالی بمانند؛ پرفروش/تخفیف فرضی اضافه نشود.
+
+
+
+## دامنه افزوده 0.9.0
+
+شش ورودی دسته شامل قلیان/تنباکو هستند؛ فهرست هوم‌پیج فقط سیگار می‌ماند. hookah slug رزروشده است و کالاهای بدون داده واقعی ساخته نمی‌شوند. flavor اختیاری و weight_grams nullable با دو رقم اعشار به Product افزوده‌اند؛ facets از کالاهای عمومی همان نوع هستند. منبع/تصویر خارجی کپی نشود. branch جاری feature/editorial-hookah-tobacco از 2c02171، PR به feature/premium-storefront؛ main و تولید بدون درخواست صریح ادغام/مستقر نشوند.

@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal, InvalidOperation
 import uuid
 from functools import wraps
 from django.db import transaction
@@ -73,6 +74,8 @@ def catalog(request):
     categories = Category.objects.filter(pk__in=visible.values('category_id')).order_by('title')
     vendor_ids = Offer.objects.filter(product__in=visible, active=True, approved=True, vendor__active=True).values('vendor_id')
     return ok({'categories': list(categories.values('title', 'slug')),
+               'flavors': list(visible.filter(product_type='tobacco').exclude(flavor='').order_by('flavor').values_list('flavor', flat=True).distinct()),
+               'weights': [str(w) for w in visible.filter(product_type='tobacco', weight_grams__gt=0).order_by('weight_grams').values_list('weight_grams', flat=True).distinct()],
                'brands': list(visible.exclude(brand='').order_by('brand').values_list('brand', flat=True).distinct()),
                'types': [{'value': value, 'title': title} for value, title in Product._meta.get_field('product_type').choices],
                'vendors': list(Vendor.objects.filter(pk__in=vendor_ids).order_by('title').values('title', 'slug')),
@@ -96,6 +99,16 @@ def products(request):
             qs = qs.order_by('catalog_image', 'pk')
     if request.GET.get('brand'):
         qs = qs.filter(brand=request.GET['brand'][:100])
+    if request.GET.get('flavor'):
+        qs = qs.filter(product_type='tobacco', flavor=request.GET['flavor'][:100])
+    if request.GET.get('weight'):
+        try:
+            weight = Decimal(request.GET['weight'][:100])
+            if not weight.is_finite() or not Decimal('0.01') <= weight <= Decimal('999999.99') or weight.as_tuple().exponent < -2:
+                raise ValueError
+        except (InvalidOperation, ValueError):
+            return JsonResponse({'success': False, 'error': {'code': 'INVALID_WEIGHT', 'message': 'وزن باید عدد مثبت با حداکثر دو رقم اعشار باشد.'}}, status=400)
+        qs = qs.filter(product_type='tobacco', weight_grams=weight)
     offer_filter = {'active': True, 'approved': True, 'vendor__active': True}
     if request.GET.get('vendor'):
         offer_filter['vendor__slug'] = request.GET['vendor']
@@ -242,3 +255,4 @@ def order_detail(request, pk):
     return ok({'id': str(obj.pk), 'total': obj.total, 'status': obj.status,
                'expires_at': obj.expires_at,
                'items': list(obj.items.values('title', 'quantity', 'unit_price', 'seller_name'))})
+

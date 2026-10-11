@@ -11,5 +11,6 @@ export default async function CatalogPage({ searchParams }: {
   const { products, catalog, filters, unavailable } = await readCatalog(await searchParams);
   return <Storefront key={JSON.stringify(filters)} home={false} initialPage={products} initialVendor={filters.vendor}
     initialType={filters.type} initialMode={filters.mode} initialCategory={filters.category}
-    initialBrand={filters.brand} initialQuery={filters.q} catalog={catalog} unavailable={unavailable} />;
+    initialFlavor={filters.flavor} initialWeight={filters.weight} initialBrand={filters.brand} initialQuery={filters.q} catalog={catalog} unavailable={unavailable} />;
 }
+

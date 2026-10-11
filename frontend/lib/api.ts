@@ -24,6 +24,8 @@ export type Product = {
   compatibility: Compatibility[];
   updated_at: string;
   product_type: "accessory" | "cigarette" | "tobacco" | "other";
+  flavor: string;
+  weight_grams: string | null;
   manufacturer: string;
   source_url: string;
   source_checked_on: string | null;
@@ -40,6 +42,8 @@ export type Catalog = {
   devices: { title: string; slug: string }[];
   checkout_enabled: boolean;
   brands: string[];
+  flavors: string[];
+  weights: string[];
   types: { value: string; title: string }[];
   vendors: { title: string; slug: string }[];
   total: number;
@@ -106,3 +110,4 @@ export async function serverApi<T>(path: string): Promise<T> {
   if (!response.ok) throw new Error(`API ${response.status}`);
   return (await response.json()).data;
 }
+

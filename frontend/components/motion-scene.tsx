@@ -67,6 +67,7 @@ export default function MotionScene({
             decoding="async"
             draggable={false}
           />
+          <span className="scene-collection-label" dir="ltr">WINSTON / COLLECTION</span>
         </div>
         <div className="container scene-layout">
           <div className="cigarette-hero-copy">
@@ -74,13 +75,12 @@ export default function MotionScene({
               <span /> اسموک‌شاپ / کاتالوگ چندفروشنده
             </div>
             <h1>
-              کاتالوگ.
+              کاتالوگ اسموک‌شاپ.
               <br />
-              <span>جزئیات روشن.</span> <br />
-              انتخاب آگاهانه.
+              <span>مدل‌ها، از نزدیک.</span>
             </h1>
             <p>
-              مدل‌ها، اکسسوری و اطلاعات عرضه را کنار هم ببینید؛ از مشخصات کالا تا فروشنده و مسیر مراجعه.
+              نمایش کامل بسته‌بندی، مشخصات ثبت‌شده و مسیر مراجعه. سیگار، قلیان، تنباکو و ملزومات در دسته‌های مستقل.
             </p>
             <div className="scene-actions">
               <a
@@ -88,14 +88,13 @@ export default function MotionScene({
                 className="button light-button"
                 onClick={() => onMode("retail")}
               >
-                کاتالوگ تکی <ArrowUpLeft size={18} />
+                مرور مدل‌های سیگار <ArrowUpLeft size={18} />
               </a>
               <a
-                href="#wholesale"
+                href="/catalog"
                 className="scene-link"
-                onClick={() => onMode("wholesale")}
               >
-                همکاری عمده <ArrowUpLeft size={18} />
+                همه دسته‌ها <ArrowUpLeft size={18} />
               </a>
             </div>
             <div className="scene-brand-note">
@@ -134,3 +133,4 @@ export default function MotionScene({
     </section>
   );
 }
+

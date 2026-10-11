@@ -11,13 +11,15 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { api, Catalog, money, number, ProductPage } from "@/lib/api";
-import ProductImage from "./product-image";
+import { api, Catalog, number, ProductPage } from "@/lib/api";
+import type { SaleMode } from "@/lib/catalog-data";
+import ProductCard from "./product-card";
+import { CatalogSections } from "./catalog-sections";
 import MotionScene from "./motion-scene";
 import Reveal from "./reveal";
 import { PackBox } from "./pack-3d";
 
-type Mode = "all" | "retail" | "wholesale";
+type Mode = SaleMode;
 export default function Storefront({
   initialPage,
   initialVendor,
@@ -27,6 +29,11 @@ export default function Storefront({
   home = true,
   initialType = "",
   initialMode = "all",
+  initialCategory = "",
+  initialBrand = "",
+  initialQuery = "",
+  initialFlavor = "",
+  initialWeight = "",
 }: {
   initialPage: ProductPage;
   initialVendor: string;
@@ -36,6 +43,11 @@ export default function Storefront({
   home?: boolean;
   initialType?: string;
   initialMode?: Mode;
+  initialCategory?: string;
+  initialBrand?: string;
+  initialQuery?: string;
+  initialFlavor?: string;
+  initialWeight?: string;
 }) {
   const [pageData, setPageData] = useState(initialPage);
   const [catalog, setCatalog] = useState(initialCatalog);
@@ -53,23 +65,25 @@ export default function Storefront({
     preference.addEventListener("change", update);
     return () => preference.removeEventListener("change", update);
   }, []);
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("");
-  const [brand, setBrand] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [category, setCategory] = useState(initialCategory);
+  const [brand, setBrand] = useState(initialBrand);
+  const [flavor, setFlavor] = useState(initialFlavor);
+  const [weight, setWeight] = useState(initialWeight);
   const [mode, setMode] = useState<Mode>(initialMode);
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!retry) return;
     const controller = new AbortController();
-    api<Catalog>(home ? "catalog/?type=cigarette" : "catalog/", { signal: controller.signal }).then(setCatalog).catch(() => {});
+    api<Catalog>(`catalog/?${new URLSearchParams({ type: kind })}`, { signal: controller.signal }).then(setCatalog).catch(() => {});
     return () => controller.abort();
-  }, [retry, home]);
+  }, [retry, kind]);
   const [error, setError] = useState(
     unavailable ? "ارتباط با کاتالوگ برقرار نشد. دوباره تلاش کنید." : "",
   );
   const brands = catalog.brands;
+  const selectedWeight = catalog.weights.find(w => Number(w) === Number(weight)) || weight;
   function selectMode(value: Mode) { setMode(value); setPage(1); }
   const first = useRef(true);
   useEffect(() => {
@@ -85,6 +99,8 @@ export default function Storefront({
           type: kind,
           q: query,
           category,
+          flavor,
+          weight,
           brand,
           mode,
           available: available ? "1" : "0",
@@ -112,16 +128,22 @@ export default function Storefront({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, category, brand, mode, available, retry, page, kind, vendor]);
+  }, [query, category, flavor, weight, brand, mode, available, retry, page, kind, vendor]);
   function clear() {
     setQuery("");
     setCategory("");
+    setFlavor("");
+    setWeight("");
     setBrand("");
     setMode("all");
     setAvailable(false);
     setKind(home ? "cigarette" : ""); setVendor(""); setPage(1);
   }
+  function selectKind(value: string) {
+    setKind(value); setCategory(""); setBrand(""); setFlavor(""); setWeight(""); setPage(1);
+  }
   const Heading = home ? "h2" : "h1";
+  const specialist = !home && (kind === "tobacco" || category === "hookah");
 
   return (
     <div
@@ -146,29 +168,28 @@ export default function Storefront({
             مرور مدل‌ها <ArrowLeft size={16} />
           </a>
         </div>
-      </div></>}
+      </div>
+      <CatalogSections brands={catalog.brands} /></>}
       <section className="container cigarette-catalog" id="catalog">
         <Reveal>
-          <div className="catalog-heading">
+          <div className={`catalog-heading ${specialist ? "specialist-intro" : ""}`}>
             <div>
-            <div className="eyebrow">کاتالوگ / {home ? "مدل‌های سیگار" : "همه دسته‌ها"}</div>
+            <div className="eyebrow">کاتالوگ / {home ? "مدل‌های سیگار" : kind === "tobacco" ? "تنباکو" : category === "hookah" ? "قلیان" : "همه دسته‌ها"}</div>
               <Heading>
-                انتخاب‌ها را
-                <br />
-                <span>کنار هم ببینید.</span>
+                {specialist ? (kind === "tobacco" ? "تنباکو؛ مشخصات هر بسته." : "قلیان؛ مدل‌ها و ملزومات.") : <>انتخاب‌ها را<br /><span>کنار هم ببینید.</span></>}
               </Heading>
             </div>
             <p>
-              نام مدل، نوع بسته‌بندی و مسیر عرضه.
-              <br />
-              اطلاعات روشن برای مراجعه و همکاری.
+              {specialist ? (kind === "tobacco" ? "برند، دسته، طعم و وزن را از اطلاعات ثبت‌شده بررسی کنید." : "مدل‌های ثبت‌شده را مرور کنید؛ قطعات و ابزار در کاتالوگ اکسسوری هستند.") : <>نام مدل، نوع بسته‌بندی و مسیر عرضه.<br />اطلاعات روشن برای مراجعه و همکاری.</>}
+              {category === "hookah" && <><br /><Link href="/catalog?type=accessory">مرور اکسسوری <ArrowUpLeft size={16} /></Link></>}
             </p>
           </div>
         </Reveal>
         {home ? <div className="catalog-route-links"><Link href="/catalog">همه کالاها <ArrowUpLeft size={16} /></Link><Link href="/catalog?type=accessory">اکسسوری و ملزومات <ArrowUpLeft size={16} /></Link></div> : <div className="catalog-kinds" aria-label="گروه کالا">
-          <button className={!kind ? "active" : ""} aria-pressed={!kind} onClick={() => { setKind(""); setCategory(""); setPage(1); }}>همه کالاها</button>
-          {catalog.types.map(t => <button key={t.value} className={kind === t.value ? "active" : ""} aria-pressed={kind === t.value} onClick={() => { setKind(t.value); setCategory(""); setPage(1); }}>{t.title}</button>)}
+          <button className={!kind ? "active" : ""} aria-pressed={!kind} onClick={() => { selectKind(""); }}>همه کالاها</button>
+          {catalog.types.map(t => <button key={t.value} className={kind === t.value ? "active" : ""} aria-pressed={kind === t.value} onClick={() => { selectKind(t.value); }}>{t.title}</button>)}
         </div>}
+        <div className="catalog-controls">
         <div className="sale-mode-tabs" aria-label="نوع عرضه">
           <button
             className={mode === "all" ? "active" : ""}
@@ -194,7 +215,7 @@ export default function Storefront({
           <span>{number(pageData.total)} نتیجه</span>
         </div>
         <div className="catalog-toolbar">
-          <div className="category-tabs" aria-label="نوع بسته‌بندی">
+          <div className="category-tabs" aria-label={home || kind === "cigarette" ? "نوع بسته‌بندی" : "دسته کالا"}>
             <button
               className={!category ? "selected" : ""}
               onClick={() => { setCategory(""); setPage(1); }}
@@ -216,6 +237,7 @@ export default function Storefront({
             <input
               aria-label="جست‌وجوی کالا"
               placeholder="جست‌وجوی مدل یا برند…"
+              maxLength={100}
               value={query}
               onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             />
@@ -261,6 +283,33 @@ export default function Storefront({
             فقط موجود
           </label>
         </div>
+        {!home && (kind === "tobacco" || flavor || weight) && <div className="tobacco-filters" aria-label="مشخصات تنباکو">
+          <label>طعم<select aria-label="فیلتر طعم" value={flavor} onChange={e => {setFlavor(e.target.value); setPage(1);}}>
+            <option value="">همه طعم‌ها</option>
+            {flavor && !catalog.flavors.includes(flavor) && <option value={flavor}>{flavor}</option>}
+            {catalog.flavors.map(f => <option key={f}>{f}</option>)}
+          </select></label>
+          <label>وزن بسته<select aria-label="فیلتر وزن" value={selectedWeight} onChange={e => {setWeight(e.target.value); setPage(1);}}>
+            <option value="">همه وزن‌ها</option>
+            {weight && !catalog.weights.includes(selectedWeight) && <option value={weight}>{number(Number(weight))} گرم</option>}
+            {catalog.weights.map(w => <option key={w} value={w}>{number(Number(w))} گرم</option>)}
+          </select></label>
+          {!catalog.flavors.length && !catalog.weights.length && <p>طعم و وزن برای این کاتالوگ هنوز ثبت نشده‌اند.</p>}
+        </div>}
+        {(query || category || flavor || weight || brand || vendor || available || mode !== "all" || (!home && kind)) && <div className="active-filters" aria-label="فیلترهای فعال">
+          <span>انتخاب شما</span>
+          {!home && kind && <button aria-label="حذف فیلتر نوع" onClick={() => selectKind("")}>{catalog.types.find(t => t.value === kind)?.title || kind}<X size={13} /></button>}
+          {query && <button aria-label="حذف فیلتر جست‌وجو" onClick={() => { setQuery(""); setPage(1); }}>{query}<X size={13} /></button>}
+          {category && <button aria-label="حذف فیلتر دسته" onClick={() => { setCategory(""); setPage(1); }}>{catalog.categories.find(c => c.slug === category)?.title || (category === "vape-pod" ? "ویپ و پاد" : category === "pipe" ? "پیپ" : category === "hookah" ? "قلیان" : category)}<X size={13} /></button>}
+          {flavor && <button aria-label="حذف فیلتر طعم" onClick={() => {setFlavor(""); setPage(1);}}>{flavor}<X size={13} /></button>}
+          {weight && <button aria-label="حذف فیلتر وزن" onClick={() => {setWeight(""); setPage(1);}}>{number(Number(weight))} گرم<X size={13} /></button>}
+          {brand && <button aria-label="حذف فیلتر برند" onClick={() => { setBrand(""); setPage(1); }}>{brand}<X size={13} /></button>}
+          {vendor && <button aria-label="حذف فیلتر فروشنده" onClick={() => { setVendor(""); setPage(1); }}>{catalog.vendors.find(v => v.slug === vendor)?.title || vendor}<X size={13} /></button>}
+          {mode !== "all" && <button aria-label="حذف فیلتر عرضه" onClick={() => selectMode("all")}>{mode === "retail" ? "تکی / بسته" : "عمده / باکس"}<X size={13} /></button>}
+          {available && <button aria-label="حذف فیلتر موجودی" onClick={() => { setAvailable(false); setPage(1); }}>فقط موجود<X size={13} /></button>}
+          <button className="reset-filters" onClick={clear}>پاک کردن همه فیلترها</button>
+        </div>}
+        </div>
         {error ? (
           <div className="empty-state" role="alert">
             <h3>کاتالوگ در دسترس نیست</h3>
@@ -280,61 +329,7 @@ export default function Storefront({
             aria-busy={loading}
           >
             {products.map((p, index) => (
-              <Link
-                className="product-card"
-                key={p.id}
-                href={`/products/${p.slug}`}
-              >
-                <div className="product-image">
-                  <span className="cig-model-number" dir="ltr">
-                    {String((page - 1) * 24 + index + 1).padStart(2, "0")} /{" "}
-                    {p.brand.toUpperCase()}
-                  </span>
-                  <ProductImage product={p} />
-                  <span className="product-status">{p.purchasable ? "عرضه آنلاین مجاز" : p.legal_status === "IN_PERSON_ONLY" ? "عرضه حضوری" : "کاتالوگ"}</span>
-                  <span className="product-photo-note">
-                    {p.image
-                      ? "تصویر کالا"
-                      : p.slug === "winston-silver"
-                        ? "تصویر مرجع سیلور"
-                        : "عکس واقعی ثبت نشده"}
-                  </span>
-                  <span className="card-arrow">
-                    <ArrowUpLeft size={20} />
-                  </span>
-                </div>
-                <div className="product-meta">
-                  <span>{p.category_title}</span>
-                  <span dir="ltr">{p.brand}</span>
-                </div>
-                <h3>{p.title}</h3>
-                {(p.sticks_per_pack !== null ||
-                  p.packs_per_carton !== null) && (
-                  <div className="pack-format-line">
-                    {p.sticks_per_pack !== null && (
-                      <span>{number(p.sticks_per_pack)} نخ / بسته</span>
-                    )}
-                    {p.packs_per_carton !== null && (
-                      <span>{number(p.packs_per_carton)} بسته / باکس</span>
-                    )}
-                  </div>
-                )}
-                <div className="product-bottom">
-                  <span>
-                    {p.retail_available && p.wholesale_available
-                      ? "تکی و عمده"
-                      : p.wholesale_available
-                        ? "عمده"
-                        : p.retail_available
-                          ? "تکی"
-                          : "عرضه ثبت نشده"}
-                  </span>
-                  <span>
-                    {p.stock > 0 ? "موجودی ثبت‌شده" : "موجودی ثبت نشده"}
-                  </span>
-                </div>
-                <div className="catalog-card-foot">{p.offers.length ? `${number(p.offers.length)} فروشنده` : "عرضه مستقیم"}<span>{p.price !== null && p.purchasable ? money(p.price) : "مشاهده مشخصات"}</span></div>
-              </Link>
+              <ProductCard key={p.id} product={p} index={(page - 1) * 24 + index + 1} />
             ))}
             {!products.length && (
               <div className="empty-state">
@@ -437,3 +432,4 @@ export default function Storefront({
     </div>
   );
 }
+

@@ -1,27 +1,16 @@
 import type { Metadata } from "next";
 import Storefront from "@/components/storefront";
-import { Catalog, ProductPage, serverApi } from "@/lib/api";
+import { CatalogParams, readCatalog } from "@/lib/catalog-data";
 
 export const metadata: Metadata = { title: "کاتالوگ همه کالاها و اکسسوری" };
 export const dynamic = "force-dynamic";
 
 export default async function CatalogPage({ searchParams }: {
-  searchParams: Promise<{ type?: string; vendor?: string; mode?: string }>;
+  searchParams: Promise<CatalogParams>;
 }) {
-  const params = await searchParams;
-  const kind = ["accessory", "cigarette", "tobacco", "other"].includes(params.type || "") ? params.type! : "";
-  const vendor = params.vendor || "";
-  const mode = params.mode === "retail" || params.mode === "wholesale" ? params.mode : "all";
-  let unavailable = false;
-  let products: ProductPage = { items: [], total: 0, page: 1, page_size: 24, pages: 1, has_next: false };
-  let catalog: Catalog = { categories: [], devices: [], checkout_enabled: false, brands: [], types: [], vendors: [], total: 0, updated_at: null };
-  try {
-    const query = new URLSearchParams({ type: kind, vendor, mode, pagination: "1", page_size: "24" });
-    [products, catalog] = await Promise.all([
-      serverApi<ProductPage>(`catalog/products/?${query}`),
-      serverApi<Catalog>("catalog/"),
-    ]);
-  } catch { unavailable = true; }
-  return <Storefront key={`${kind}:${vendor}:${mode}`} home={false} initialPage={products} initialVendor={vendor}
-    initialType={kind} initialMode={mode} catalog={catalog} unavailable={unavailable} />;
+  const { products, catalog, filters, unavailable } = await readCatalog(await searchParams);
+  return <Storefront key={JSON.stringify(filters)} home={false} initialPage={products} initialVendor={filters.vendor}
+    initialType={filters.type} initialMode={filters.mode} initialCategory={filters.category}
+    initialFlavor={filters.flavor} initialWeight={filters.weight} initialBrand={filters.brand} initialQuery={filters.q} catalog={catalog} unavailable={unavailable} />;
 }
+

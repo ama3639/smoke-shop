@@ -72,7 +72,7 @@ test("category, brand and retail/wholesale filters show relevant models", async 
   await expect(page.locator(".product-card")).toHaveCount(13);
   await page.getByRole("button", { name: "تکی / بسته", exact: true }).click();
   await expect(page.locator(".product-card")).toHaveCount(13);
-  await page.getByLabel("فیلتر برند").selectOption("Winston");
+  await page.getByLabel("فیلتر برند", { exact: true }).selectOption("Winston");
   await expect(page.locator(".product-card")).toHaveCount(13);
 });
 
@@ -352,11 +352,11 @@ test("global search and brand/category deep links preserve initial filters", asy
   await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByRole("button", { name: "پاک کردن همه فیلترها" }).click();
   await expect(page.locator(".product-card")).toHaveCount(15);
-  await expect(page.getByLabel("فیلتر برند")).toHaveValue("");
+  await expect(page.getByLabel("فیلتر برند", { exact: true })).toHaveValue("");
   await page.goto("/");
   await page.locator(".brand-index").getByRole("link", { name: "Winston", exact: true }).click();
   await expect(page.locator(".product-card")).toHaveCount(14);
-  await expect(page.getByLabel("فیلتر برند")).toHaveValue("Winston");
+  await expect(page.getByLabel("فیلتر برند", { exact: true })).toHaveValue("Winston");
 });
 
 test("premium navigation and filter controls fit at 320px", async ({ page }) => {

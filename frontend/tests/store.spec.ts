@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
 
+test.beforeEach(async ({ context }, info) => {
+  if (!info.title.includes("age gate")) {
+    await context.addInitScript(() => sessionStorage.setItem("smokeshop-age-confirmed", "true"));
+  }
+});
+
 test("all fourteen seller photos load as full-frame product images", async ({
   page,
 }) => {
@@ -301,4 +307,79 @@ test("accessories move off the homepage and remain available in the full catalog
   await page.getByRole("button", {name: "پاک کردن فیلترها"}).click();
   await expect(page.locator(".product-card")).toHaveCount(15);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+});
+
+test("category discovery uses real catalog routes and missing categories stay empty", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".discovery-card")).toHaveCount(4);
+  await expect(page.getByRole("link", { name: "دسته سیگار", exact: true })).toHaveAttribute("href", "/catalog?type=cigarette");
+  await expect(page.getByRole("link", { name: "دسته اکسسوری", exact: true })).toHaveAttribute("href", "/catalog?type=accessory");
+  await page.getByRole("link", { name: "دسته ویپ و پاد", exact: true }).click();
+  await expect(page).toHaveURL(/category=vape-pod/);
+  await expect(page.locator(".product-card")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "حذف فیلتر دسته" })).toContainText("ویپ و پاد");
+  await expect(page.getByRole("heading", { name: "مدلی با این مشخصات پیدا نشد." })).toBeVisible();
+  await page.getByRole("button", { name: "حذف فیلتر دسته" }).click();
+  await expect(page.locator(".product-card")).toHaveCount(15);
+  await page.goto("/catalog?category=pipe");
+  await expect(page.locator(".product-card")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "حذف فیلتر دسته" })).toContainText("پیپ");
+});
+
+test("global search and brand/category deep links preserve initial filters", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("searchbox", { name: "جست‌وجوی همه کالاها" }).fill("كامپكت");
+  await page.getByRole("button", { name: "اجرای جست‌وجو" }).click();
+  await expect(page.locator(".product-card")).toHaveCount(2);
+  await expect(page.getByRole("textbox", { name: "جست‌وجوی کالا" })).toHaveValue("كامپكت");
+  await page.reload();
+  await expect(page.locator(".product-card")).toHaveCount(2);
+  await page.goto("/catalog?type=cigarette&brand=Winston&category=xs");
+  await expect(page.locator(".product-card")).toHaveCount(3);
+  await expect(page.getByLabel("فیلتر برند")).toHaveValue("Winston");
+  await page.getByRole("button", { name: "حذف فیلتر دسته" }).click();
+  await expect(page.locator(".product-card")).toHaveCount(14);
+  await page.getByRole("button", { name: "پاک کردن همه فیلترها" }).click();
+  await expect(page.locator(".product-card")).toHaveCount(15);
+  await expect(page.getByLabel("فیلتر برند")).toHaveValue("");
+  await page.goto("/");
+  await page.locator(".brand-index").getByRole("link", { name: "Winston", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(14);
+  await expect(page.getByLabel("فیلتر برند")).toHaveValue("Winston");
+});
+
+test("premium navigation and filter controls fit at 320px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/");
+  await expect(page.getByRole("searchbox", { name: "جست‌وجوی همه کالاها" })).toBeVisible();
+  await page.locator(".catalog-discovery").scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.goto("/catalog?brand=Winston&category=xs");
+  await expect(page.locator(".product-card")).toHaveCount(3);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+});
+
+test("age gate requires an explicit adult choice and remembers this session", async ({ page }) => {
+  await page.goto("/");
+  const gate = page.getByRole("dialog", { name: "تأیید سن برای ورود" });
+  await expect(gate).toBeVisible();
+  await expect(page.getByRole("button", { name: "۱۸ سال یا بیشتر دارم", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(gate).toBeVisible();
+  await page.getByRole("button", { name: "۱۸ سال یا بیشتر دارم", exact: true }).click();
+  await expect(gate).toHaveCount(0);
+  await page.getByRole("link", { name: "دسته سیگار", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("age gate denies underage entry and offers a neutral exit", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "زیر ۱۸ سال دارم", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("زیر ۱۸ سال");
+  await expect(page.getByRole("button", { name: "۱۸ سال یا بیشتر دارم", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "خروج از سایت", exact: true }).click();
+  await expect(page).toHaveURL("about:blank");
 });

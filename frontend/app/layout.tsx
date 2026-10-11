@@ -5,14 +5,15 @@ import "@fontsource/vazirmatn/600.css";
 import "@fontsource/vazirmatn/700.css";
 import "./globals.css";
 import { Footer, Header } from "@/components/chrome";
+import AgeGate from "@/components/age-gate";
 
 export const metadata: Metadata = {
   title: {
-    default: "اسموک‌شاپ | کاتالوگ سیگار وینستون، عمده و تکی",
+    default: "اسموک‌شاپ | کاتالوگ سیگار، ویپ، پیپ و اکسسوری",
     template: "%s | اسموک‌شاپ",
   },
   description:
-    "معرفی مدل‌های سیگار وینستون، مشخصات بسته و باکس، اطلاعات عرضه حضوری تکی و همکاری عمده.",
+    "کاتالوگ فارسی کالاها، مشخصات، برندها و فروشندگان؛ اطلاعات عرضه حضوری و اقلام دارای مجوز.",
 };
 
 export default function RootLayout({
@@ -29,6 +30,7 @@ export default function RootLayout({
         <Header />
         <main id="main">{children}</main>
         <Footer />
+        <AgeGate />
       </body>
     </html>
   );

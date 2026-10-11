@@ -11,13 +11,15 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
-import { api, Catalog, money, number, ProductPage } from "@/lib/api";
-import ProductImage from "./product-image";
+import { api, Catalog, number, ProductPage } from "@/lib/api";
+import type { SaleMode } from "@/lib/catalog-data";
+import ProductCard from "./product-card";
+import { CatalogSections } from "./catalog-sections";
 import MotionScene from "./motion-scene";
 import Reveal from "./reveal";
 import { PackBox } from "./pack-3d";
 
-type Mode = "all" | "retail" | "wholesale";
+type Mode = SaleMode;
 export default function Storefront({
   initialPage,
   initialVendor,
@@ -27,6 +29,9 @@ export default function Storefront({
   home = true,
   initialType = "",
   initialMode = "all",
+  initialCategory = "",
+  initialBrand = "",
+  initialQuery = "",
 }: {
   initialPage: ProductPage;
   initialVendor: string;
@@ -36,6 +41,9 @@ export default function Storefront({
   home?: boolean;
   initialType?: string;
   initialMode?: Mode;
+  initialCategory?: string;
+  initialBrand?: string;
+  initialQuery?: string;
 }) {
   const [pageData, setPageData] = useState(initialPage);
   const [catalog, setCatalog] = useState(initialCatalog);
@@ -53,9 +61,9 @@ export default function Storefront({
     preference.addEventListener("change", update);
     return () => preference.removeEventListener("change", update);
   }, []);
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("");
-  const [brand, setBrand] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [category, setCategory] = useState(initialCategory);
+  const [brand, setBrand] = useState(initialBrand);
   const [mode, setMode] = useState<Mode>(initialMode);
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -146,7 +154,8 @@ export default function Storefront({
             مرور مدل‌ها <ArrowLeft size={16} />
           </a>
         </div>
-      </div></>}
+      </div>
+      <CatalogSections brands={catalog.brands} /></>}
       <section className="container cigarette-catalog" id="catalog">
         <Reveal>
           <div className="catalog-heading">
@@ -169,6 +178,7 @@ export default function Storefront({
           <button className={!kind ? "active" : ""} aria-pressed={!kind} onClick={() => { setKind(""); setCategory(""); setPage(1); }}>همه کالاها</button>
           {catalog.types.map(t => <button key={t.value} className={kind === t.value ? "active" : ""} aria-pressed={kind === t.value} onClick={() => { setKind(t.value); setCategory(""); setPage(1); }}>{t.title}</button>)}
         </div>}
+        <div className="catalog-controls">
         <div className="sale-mode-tabs" aria-label="نوع عرضه">
           <button
             className={mode === "all" ? "active" : ""}
@@ -216,6 +226,7 @@ export default function Storefront({
             <input
               aria-label="جست‌وجوی کالا"
               placeholder="جست‌وجوی مدل یا برند…"
+              maxLength={100}
               value={query}
               onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             />
@@ -261,6 +272,18 @@ export default function Storefront({
             فقط موجود
           </label>
         </div>
+        {(query || category || brand || vendor || available || mode !== "all" || (!home && kind)) && <div className="active-filters" aria-label="فیلترهای فعال">
+          <span>انتخاب شما</span>
+          {!home && kind && <button aria-label="حذف فیلتر نوع" onClick={() => { setKind(""); setPage(1); }}>{catalog.types.find(t => t.value === kind)?.title || kind}<X size={13} /></button>}
+          {query && <button aria-label="حذف فیلتر جست‌وجو" onClick={() => { setQuery(""); setPage(1); }}>{query}<X size={13} /></button>}
+          {category && <button aria-label="حذف فیلتر دسته" onClick={() => { setCategory(""); setPage(1); }}>{catalog.categories.find(c => c.slug === category)?.title || (category === "vape-pod" ? "ویپ و پاد" : category === "pipe" ? "پیپ" : category)}<X size={13} /></button>}
+          {brand && <button aria-label="حذف فیلتر برند" onClick={() => { setBrand(""); setPage(1); }}>{brand}<X size={13} /></button>}
+          {vendor && <button aria-label="حذف فیلتر فروشنده" onClick={() => { setVendor(""); setPage(1); }}>{catalog.vendors.find(v => v.slug === vendor)?.title || vendor}<X size={13} /></button>}
+          {mode !== "all" && <button aria-label="حذف فیلتر عرضه" onClick={() => selectMode("all")}>{mode === "retail" ? "تکی / بسته" : "عمده / باکس"}<X size={13} /></button>}
+          {available && <button aria-label="حذف فیلتر موجودی" onClick={() => { setAvailable(false); setPage(1); }}>فقط موجود<X size={13} /></button>}
+          <button className="reset-filters" onClick={clear}>پاک کردن همه فیلترها</button>
+        </div>}
+        </div>
         {error ? (
           <div className="empty-state" role="alert">
             <h3>کاتالوگ در دسترس نیست</h3>
@@ -280,61 +303,7 @@ export default function Storefront({
             aria-busy={loading}
           >
             {products.map((p, index) => (
-              <Link
-                className="product-card"
-                key={p.id}
-                href={`/products/${p.slug}`}
-              >
-                <div className="product-image">
-                  <span className="cig-model-number" dir="ltr">
-                    {String((page - 1) * 24 + index + 1).padStart(2, "0")} /{" "}
-                    {p.brand.toUpperCase()}
-                  </span>
-                  <ProductImage product={p} />
-                  <span className="product-status">{p.purchasable ? "عرضه آنلاین مجاز" : p.legal_status === "IN_PERSON_ONLY" ? "عرضه حضوری" : "کاتالوگ"}</span>
-                  <span className="product-photo-note">
-                    {p.image
-                      ? "تصویر کالا"
-                      : p.slug === "winston-silver"
-                        ? "تصویر مرجع سیلور"
-                        : "عکس واقعی ثبت نشده"}
-                  </span>
-                  <span className="card-arrow">
-                    <ArrowUpLeft size={20} />
-                  </span>
-                </div>
-                <div className="product-meta">
-                  <span>{p.category_title}</span>
-                  <span dir="ltr">{p.brand}</span>
-                </div>
-                <h3>{p.title}</h3>
-                {(p.sticks_per_pack !== null ||
-                  p.packs_per_carton !== null) && (
-                  <div className="pack-format-line">
-                    {p.sticks_per_pack !== null && (
-                      <span>{number(p.sticks_per_pack)} نخ / بسته</span>
-                    )}
-                    {p.packs_per_carton !== null && (
-                      <span>{number(p.packs_per_carton)} بسته / باکس</span>
-                    )}
-                  </div>
-                )}
-                <div className="product-bottom">
-                  <span>
-                    {p.retail_available && p.wholesale_available
-                      ? "تکی و عمده"
-                      : p.wholesale_available
-                        ? "عمده"
-                        : p.retail_available
-                          ? "تکی"
-                          : "عرضه ثبت نشده"}
-                  </span>
-                  <span>
-                    {p.stock > 0 ? "موجودی ثبت‌شده" : "موجودی ثبت نشده"}
-                  </span>
-                </div>
-                <div className="catalog-card-foot">{p.offers.length ? `${number(p.offers.length)} فروشنده` : "عرضه مستقیم"}<span>{p.price !== null && p.purchasable ? money(p.price) : "مشاهده مشخصات"}</span></div>
-              </Link>
+              <ProductCard key={p.id} product={p} index={(page - 1) * 24 + index + 1} />
             ))}
             {!products.length && (
               <div className="empty-state">

@@ -124,7 +124,7 @@ export default async function ProductPage({
           </div>}
         </div>
       </div>
-      {p.product_type === "accessory" && (
+      {p.product_type !== "cigarette" && p.product_type !== "tobacco" && (
         <section className="compatibility-detail">
           <div className="eyebrow">قبل از انتخاب بررسی کنید</div>
           <h2>سازگاری قطعه</h2>

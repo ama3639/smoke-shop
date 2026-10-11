@@ -9,6 +9,7 @@ class ProductSerializer(serializers.ModelSerializer):
     purchasable = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
     compatibility = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -18,6 +19,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_purchasable(self, obj):
         return can_purchase(obj) and obj.price > 0
+
+    def get_image(self, obj):
+        return obj.image.url if obj.image else obj.catalog_image or None
 
     def get_price(self, obj):
         return obj.price if can_purchase(obj) else None

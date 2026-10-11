@@ -1,33 +1,45 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from shop.models import Category, FeatureFlag, Product
+from shop.models import AuditLog, Category, FeatureFlag, Product
+from shop.winston_catalog import CATEGORIES, WINSTON_CATALOG, DESCRIPTION, LEGACY_DESCRIPTION
 
 
 class Command(BaseCommand):
-    help = 'Create catalog-only sample data; never overwrite existing products or enable sales.'
+    help = 'Prepare the Winston photo catalog, preserve seller edits and never enable online sales.'
 
     @transaction.atomic
     def handle(self, *args, **options):
         categories = {}
-        for slug, title in [('regular', 'استاندارد'), ('slim', 'اسلیم'), ('compact', 'کامپکت')]:
+        for slug, title in CATEGORIES.items():
             categories[slug], _ = Category.objects.get_or_create(slug=slug, defaults={'title': title})
-        samples = [
-            ('winston-red', 'وینستون قرمز', 'regular', 'Winston', True, True),
-            ('winston-blue', 'وینستون آبی', 'regular', 'Winston', True, True),
-            ('winston-xs-blue', 'وینستون XS آبی', 'slim', 'Winston', True, True),
-            ('winston-xs-silver', 'وینستون XS سیلور', 'slim', 'Winston', True, False),
-            ('winston-compact-blue', 'وینستون کامپکت آبی', 'compact', 'Winston', True, True),
-            ('winston-compact-silver', 'وینستون کامپکت سیلور', 'compact', 'Winston', False, True),
-            ('winston-silver', 'وینستون سیلور', 'regular', 'Winston', True, True),
-        ]
-        for index, (slug, title, category, brand, retail, wholesale) in enumerate(samples):
-            product, _ = Product.objects.get_or_create(slug=slug, defaults={
-                'title': title, 'sku': f'DEMO-CIG-{index + 1:03}', 'category': categories[category],
-                'product_type': 'cigarette', 'brand': brand, 'illustration': 'pack',
+        for number, suffix, slug, title, category, retail, wholesale in WINSTON_CATALOG:
+            sku = f'DEMO-CIG-{suffix:03}'
+            photo = f'/images/products/winston/optimized/{number}.webp'
+            product, created = Product.objects.get_or_create(slug=slug, defaults={
+                'title': title, 'sku': sku, 'category': categories[category],
+                'product_type': 'cigarette', 'brand': 'Winston', 'illustration': 'pack',
                 'retail_available': retail, 'wholesale_available': wholesale,
-                'description': 'مدل و برند نمایشی برای بررسی رابط فروشگاه؛ این اطلاعات، موجودی یا تأیید عرضه واقعی نیست. مشخصات باید با داده واقعی فروشنده جایگزین شوند.',
+                'description': DESCRIPTION, 'catalog_image': photo,
                 'stock': 0, 'legal_status': Product.LegalStatus.IN_PERSON_ONLY,
             })
+            if not created and product.product_type == 'cigarette' and product.brand == 'Winston':
+                # Attach the source photo without replacing any seller-uploaded image.
+                changes = []
+                if not product.catalog_image:
+                    product.catalog_image = photo
+                    changes.append('catalog_image')
+                # Upgrade only untouched legacy demo metadata. Operational data stays intact.
+                if (product.sku == sku and product.description == LEGACY_DESCRIPTION
+                        and not AuditLog.objects.filter(entity=f'product:{product.pk}', action='ADMIN_UPDATE').exists()):
+                    product.category = categories[category]
+                    product.description = DESCRIPTION
+                    changes.extend(['category', 'description', 'search_text'])
+                    for field, legacy_value in [('sticks_per_pack', 20), ('packs_per_carton', 10)]:
+                        if getattr(product, field) == legacy_value:
+                            setattr(product, field, None)
+                            changes.append(field)
+                if changes:
+                    product.save(update_fields=[*changes, 'updated_at'])
         for key, description in [('cart', 'سبد اقلام دارای مجوز'), ('order_requests', 'رزرو سفارش بدون پرداخت؛ نیازمند آماده‌سازی عملیات')]:
             FeatureFlag.objects.get_or_create(key=key, defaults={'description': description})
-        self.stdout.write(self.style.SUCCESS('Sample catalog prepared; sales remain disabled.'))
+        self.stdout.write(self.style.SUCCESS('Winston photo catalog prepared; online sales remain disabled.'))

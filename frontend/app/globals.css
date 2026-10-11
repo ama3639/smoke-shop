@@ -2799,6 +2799,45 @@ nav a {
 }
 
 /* One fixed, scroll-scrubbed smoke film follows the entire homepage. */
+.photographed-pack {
+  --photo-air: 80px;
+  --pack-width: 132px;
+  --pack-height: 203px;
+  position: relative;
+  padding-top: var(--photo-air);
+  background: #fafafb;
+  perspective: 950px;
+}
+.product-pack-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.photo-stick-window {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(
+    var(--photo-air) + (100% - var(--photo-air)) * var(--photo-pack-top, 0.1)
+  );
+  overflow: hidden;
+  pointer-events: none;
+}
+.photo-stick-window .pack-cigarette {
+  top: auto;
+  bottom: calc(var(--pack-height) * -0.8);
+  left: 57%;
+  transform: translate3d(0, 0, 0);
+}
+@media (max-width: 740px) {
+  .photographed-pack {
+    --photo-air: 64px;
+    --pack-width: 91px;
+    --pack-height: 142px;
+  }
+}
 .homepage-smoke {
   position: fixed;
   inset: 0;

@@ -1,6 +1,6 @@
 import uuid
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator, RegexValidator
 from django.db import models
 from django.db.models import Q
 
@@ -32,8 +32,8 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
     product_type = models.CharField('نوع کالا', max_length=20, choices=[('accessory', 'اکسسوری'), ('cigarette', 'سیگار')], default='accessory')
     brand = models.CharField('برند', max_length=100, blank=True)
-    sticks_per_pack = models.PositiveSmallIntegerField('تعداد نخ در بسته', default=20, validators=[MinValueValidator(1), MaxValueValidator(100)])
-    packs_per_carton = models.PositiveSmallIntegerField('تعداد بسته در باکس', default=10, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    sticks_per_pack = models.PositiveSmallIntegerField('تعداد نخ در بسته', null=True, blank=True, default=None, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    packs_per_carton = models.PositiveSmallIntegerField('تعداد بسته در باکس', null=True, blank=True, default=None, validators=[MinValueValidator(1), MaxValueValidator(100)])
     retail_available = models.BooleanField('معرفی عرضه تکی', default=True)
     wholesale_available = models.BooleanField('معرفی عرضه عمده', default=False)
     description = models.TextField('توضیحات')
@@ -42,6 +42,9 @@ class Product(models.Model):
     illustration = models.CharField('طرح نمایشی', max_length=20, choices=[('case', 'کیف'), ('brush', 'پاک‌کن'), ('stand', 'پایه'), ('ring', 'واشر'), ('pack', 'بسته سیگار'), ('carton', 'باکس سیگار')], default='case')
     image = models.ImageField('تصویر واقعی کالا', upload_to='products/%Y/%m/', blank=True,
                               validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])])
+    catalog_image = models.CharField('مسیر تصویر داخل پروژه', max_length=300, blank=True, default='',
+        help_text='مسیر محلی مانند /images/products/winston/optimized/01.webp؛ تصویر آپلودشده در اولویت است.',
+        validators=[RegexValidator(r'^/images/[A-Za-z0-9_/-]+\.(?:png|webp|jpg|jpeg)$', 'مسیر تصویر داخل پوشه images معتبر نیست.')])
     price = models.PositiveBigIntegerField('قیمت به تومان', default=0)
     stock = models.PositiveIntegerField('موجودی', default=0)
     legal_status = models.CharField('وضعیت حقوقی', max_length=30, choices=LegalStatus.choices, default=LegalStatus.REVIEW_REQUIRED)

@@ -275,7 +275,7 @@ export default function Storefront({
                   <span className="product-status">معرفی عرضه حضوری</span>
                   <span className="product-photo-note">
                     {p.image
-                      ? "تصویر کالا"
+                      ? "تصویر بسته"
                       : p.slug === "winston-silver"
                         ? "تصویر مرجع سیلور"
                         : "عکس واقعی ثبت نشده"}
@@ -291,13 +291,20 @@ export default function Storefront({
                 )}
                 <div className="product-meta">
                   <span>{p.category_title}</span>
-                  <span dir="ltr">{p.sku}</span>
+                  <span dir="ltr">{p.brand}</span>
                 </div>
                 <h3>{p.title}</h3>
-                <div className="pack-format-line">
-                  <span>{number(p.sticks_per_pack)} نخ / بسته</span>
-                  <span>{number(p.packs_per_carton)} بسته / باکس</span>
-                </div>
+                {(p.sticks_per_pack !== null ||
+                  p.packs_per_carton !== null) && (
+                  <div className="pack-format-line">
+                    {p.sticks_per_pack !== null && (
+                      <span>{number(p.sticks_per_pack)} نخ / بسته</span>
+                    )}
+                    {p.packs_per_carton !== null && (
+                      <span>{number(p.packs_per_carton)} بسته / باکس</span>
+                    )}
+                  </div>
+                )}
                 <div className="product-bottom">
                   <span>
                     {p.retail_available && p.wholesale_available
@@ -327,10 +334,10 @@ export default function Storefront({
           </div>
         )}
         <div className="sample-note">
-          <span>داده نمایشی</span>
+          <span>اطلاعات کاتالوگ</span>
           <p>
-            تصاویر، مشخصات بسته و مدل‌های فعلی برای بررسی رابط هستند. موجودی و
-            اطلاعات واقعی فروشنده هنوز ثبت نشده‌اند.
+            تصاویر بسته‌ها از فایل‌های ارسالی فروشنده هستند. موجودی و مشخصات
+            عرضه پس از تأیید فروشنده تکمیل می‌شوند.
           </p>
         </div>
       </section>

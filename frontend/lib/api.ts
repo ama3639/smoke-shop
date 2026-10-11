@@ -25,8 +25,8 @@ export type Product = {
   updated_at: string;
   product_type: "accessory" | "cigarette";
   brand: string;
-  sticks_per_pack: number;
-  packs_per_carton: number;
+  sticks_per_pack: number | null;
+  packs_per_carton: number | null;
   retail_available: boolean;
   wholesale_available: boolean;
 };

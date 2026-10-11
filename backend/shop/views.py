@@ -79,6 +79,9 @@ def products(request):
     qs = visible_products().order_by('pk')
     if request.GET.get('type'):
         qs = qs.filter(product_type=request.GET['type'])
+        if request.GET['type'] == 'cigarette':
+            # Stable photo order in both fresh and upgraded catalogs; retain product IDs.
+            qs = qs.order_by('catalog_image', 'pk')
     if request.GET.get('brand'):
         qs = qs.filter(brand=request.GET['brand'][:100])
     if request.GET.get('mode') == 'wholesale':

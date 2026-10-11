@@ -198,7 +198,7 @@ class ShopTests(TestCase):
     def test_sample_seed_is_repeatable_and_never_enables_sales(self):
         for _ in range(2):
             call_command('seed_demo', stdout=io.StringIO())
-        self.assertEqual(Product.objects.filter(sku__startswith='DEMO-').count(), 7)
+        self.assertEqual(Product.objects.filter(sku__startswith='DEMO-').count(), 14)
         self.assertFalse(Product.objects.filter(sku__startswith='DEMO-', legal_status='APPROVED_ONLINE').exists())
         self.assertFalse(Category.objects.get(slug='regular').online_enabled)
 
@@ -214,17 +214,70 @@ class ShopTests(TestCase):
         call_command('seed_demo', stdout=io.StringIO())
         endpoint = '/api/v1/catalog/products/'
         all_cigarettes = self.client.get(endpoint, {'type': 'cigarette'}).json()['data']
-        self.assertEqual(len(all_cigarettes), 7)
+        self.assertEqual(len(all_cigarettes), 14)
         self.assertTrue(all(p['brand'] == 'Winston' and not p['purchasable'] for p in all_cigarettes))
-        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'wholesale'}).json()['data']), 6)
-        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'retail'}).json()['data']), 6)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'wholesale'}).json()['data']), 13)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'mode': 'retail'}).json()['data']), 13)
         self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'q': 'كامپكت'}).json()['data']), 2)
-        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'brand': 'Winston'}).json()['data']), 7)
+        self.assertEqual(len(self.client.get(endpoint, {'type': 'cigarette', 'brand': 'Winston'}).json()['data']), 14)
         categories = self.client.get('/api/v1/catalog/', {'type': 'cigarette'}).json()['data']['categories']
-        self.assertEqual({c['slug'] for c in categories}, {'regular', 'slim', 'compact'})
+        self.assertEqual({c['slug'] for c in categories}, {'regular', 'xs', 'nova', 'superslim', 'x-style', 'compact'})
 
     def test_product_default_new_fields_and_health(self):
         self.assertEqual(self.client.get('/api/v1/health/').json()['data']['status'], 'ok')
+
+    def test_winston_photos_match_models_and_upload_has_priority(self):
+        call_command('seed_demo', stdout=io.StringIO())
+        data = self.client.get('/api/v1/catalog/products/', {'type': 'cigarette'}).json()['data']
+        self.assertEqual(len({p['image'] for p in data}), 14)
+        self.assertEqual([p['image'] for p in data],
+                         [f'/images/products/winston/optimized/{number:02}.webp' for number in range(1, 15)])
+        by_slug = {p['slug']: p for p in data}
+        for slug, number in [('winston-red', '07'), ('winston-silver', '12'),
+                             ('winston-xs-black', '13'), ('winston-superslim-silver', '01')]:
+            self.assertEqual(by_slug[slug]['image'], f'/images/products/winston/optimized/{number}.webp')
+            self.assertIsNone(by_slug[slug]['sticks_per_pack'])
+            self.assertIsNone(by_slug[slug]['packs_per_carton'])
+        product = Product.objects.get(slug='winston-red')
+        product.image = 'products/seller-upload.png'
+        product.save()
+        response = self.client.get('/api/v1/catalog/products/winston-red/').json()['data']
+        self.assertEqual(response['image'], '/media/products/seller-upload.png')
+
+    def test_photo_catalog_upgrades_legacy_samples_and_preserves_seller_edits(self):
+        from .winston_catalog import LEGACY_DESCRIPTION
+        category = Category.objects.create(title='قدیمی', slug='slim')
+        legacy = Product.objects.create(title='وینستون XS آبی', slug='winston-xs-blue', sku='DEMO-CIG-003',
+            category=category, product_type='cigarette', brand='Winston', description=LEGACY_DESCRIPTION,
+            sticks_per_pack=20, packs_per_carton=10, legal_status='IN_PERSON_ONLY')
+        edited = Product.objects.create(title='عنوان فروشنده', slug='winston-blue', sku='DEMO-CIG-002',
+            category=category, product_type='cigarette', brand='Winston', description='متن فروشنده',
+            sticks_per_pack=25, packs_per_carton=8, stock=11, price=123456, active=False,
+            legal_status='BLOCKED', catalog_image='/images/custom.webp')
+        audited = Product.objects.create(title='وینستون سیلور', slug='winston-silver', sku='DEMO-CIG-007',
+            category=category, product_type='cigarette', brand='Winston', description=LEGACY_DESCRIPTION,
+            sticks_per_pack=20, packs_per_carton=10, legal_status='IN_PERSON_ONLY')
+        AuditLog.objects.create(actor='seller', action='ADMIN_UPDATE', entity=f'product:{audited.pk}',
+                                changes={'sticks_per_pack': {'before': '25', 'after': '20'}})
+        for _ in range(2):
+            call_command('seed_demo', stdout=io.StringIO())
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.category.slug, 'xs')
+        self.assertIsNone(legacy.sticks_per_pack)
+        self.assertIsNone(legacy.packs_per_carton)
+        self.assertEqual(legacy.catalog_image, '/images/products/winston/optimized/04.webp')
+        edited.refresh_from_db()
+        self.assertEqual((edited.title, edited.description, edited.category_id),
+                         ('عنوان فروشنده', 'متن فروشنده', category.pk))
+        self.assertEqual((edited.sticks_per_pack, edited.packs_per_carton, edited.stock, edited.price),
+                         (25, 8, 11, 123456))
+        self.assertFalse(edited.active)
+        self.assertEqual(edited.legal_status, 'BLOCKED')
+        self.assertEqual(edited.catalog_image, '/images/custom.webp')
+        audited.refresh_from_db()
+        self.assertEqual((audited.sticks_per_pack, audited.packs_per_carton), (20, 10))
+        self.assertEqual(audited.description, LEGACY_DESCRIPTION)
+        self.assertEqual(audited.category_id, category.pk)
 
     def test_unpublished_branches_hidden(self):
         branch = Branch.objects.create(title='شعبه', city='تهران', address='نشانی آزمون', phone='test', hours='test')

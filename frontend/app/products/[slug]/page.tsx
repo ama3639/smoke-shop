@@ -60,11 +60,19 @@ export default async function ProductPage({
                 </div>
                 <div>
                   <dt>واحد بسته</dt>
-                  <dd>{number(p.sticks_per_pack)} نخ</dd>
+                  <dd>
+                    {p.sticks_per_pack === null
+                      ? "تأیید نشده"
+                      : `${number(p.sticks_per_pack)} نخ`}
+                  </dd>
                 </div>
                 <div>
                   <dt>واحد باکس</dt>
-                  <dd>{number(p.packs_per_carton)} بسته</dd>
+                  <dd>
+                    {p.packs_per_carton === null
+                      ? "تأیید نشده"
+                      : `${number(p.packs_per_carton)} بسته`}
+                  </dd>
                 </div>
                 <div>
                   <dt>مسیر عرضه حضوری</dt>

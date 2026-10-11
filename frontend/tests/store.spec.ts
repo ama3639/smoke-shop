@@ -1,10 +1,47 @@
 import { test, expect } from "@playwright/test";
 
+test("all fourteen seller photos load as full-frame product images", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const cards = page.locator(".product-card");
+  await expect(cards).toHaveCount(14);
+  await expect(cards.locator(".catalog-pack-art")).toHaveCount(0);
+  const urls = new Set<string>();
+  for (const card of await cards.all()) {
+    const photo = card.locator(".product-pack-photo");
+    await photo.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() => photo.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+      .toBe(1122);
+    expect(
+      await photo.evaluate((el) => (el as HTMLImageElement).naturalHeight),
+    ).toBe(1402);
+    expect(await photo.evaluate((el) => getComputedStyle(el).objectFit)).toBe(
+      "contain",
+    );
+    await expect(photo).toHaveAttribute(
+      "alt",
+      (await card.locator("h3").innerText()).trim(),
+    );
+    urls.add((await photo.getAttribute("src"))!);
+  }
+  expect(urls.size).toBe(14);
+  await expect(
+    page.locator('a.product-card[href="/products/winston-xs-black"] h3'),
+  ).toHaveText("وینستون XS مشکی");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
 test("RTL, local font, catalog and normalized search", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("سیگار");
-  await expect(page.locator(".product-card")).toHaveCount(7);
+  await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كامپكت");
   await expect(page.locator(".product-card")).toHaveCount(2);
   await page.evaluate(() => document.fonts.ready);
@@ -22,15 +59,15 @@ test("category, brand and retail/wholesale filters show relevant models", async 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "اسلیم", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "XS", exact: true }).click();
+  await expect(page.locator(".product-card")).toHaveCount(3);
   await page.getByRole("button", { name: "همه نوع‌ها", exact: true }).click();
   await page.getByRole("button", { name: "عمده / باکس", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(6);
+  await expect(page.locator(".product-card")).toHaveCount(13);
   await page.getByRole("button", { name: "تکی / بسته", exact: true }).click();
-  await expect(page.locator(".product-card")).toHaveCount(6);
+  await expect(page.locator(".product-card")).toHaveCount(13);
   await page.getByLabel("فیلتر برند").selectOption("Winston");
-  await expect(page.locator(".product-card")).toHaveCount(6);
+  await expect(page.locator(".product-card")).toHaveCount(13);
 });
 
 test("catalog-only product cannot be purchased and missing product returns 404", async ({
@@ -201,11 +238,15 @@ test("packet reveals a three-dimensional stick on hover or first touch", async (
   await expect
     .poll(() =>
       card
-        .locator(".pack-front-photo")
+        .locator(".product-pack-photo")
         .evaluate((el) => (el as HTMLImageElement).naturalWidth),
     )
     .toBeGreaterThan(1000);
   await expect(stick.locator(".cigarette-facet")).toHaveCount(16);
+  await expect(card.locator(".product-pack-photo")).toHaveAttribute(
+    "src",
+    "/images/products/winston/optimized/12.webp",
+  );
   const before = await stick.evaluate((el) => getComputedStyle(el).transform);
   if (isMobile) {
     await card.tap();

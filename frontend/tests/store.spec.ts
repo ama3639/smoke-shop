@@ -763,6 +763,7 @@ test("guest cart survives registration, checkout and later login; other sessions
   await expect(page.locator(".cart-row")).toHaveCount(1);
   await page.getByRole("link", { name: "ادامه و بررسی درخواست" }).click();
   await expect(page).toHaveURL(/\/checkout$/);
+  await page.screenshot({ path: test.info().outputPath("checkout-populated.png"), fullPage: true });
   await page.getByRole("button", { name: "ثبت درخواست سفارش" }).click();
   const track = page.getByRole("link", { name: "مشاهده وضعیت سفارش" });
   await expect(track).toBeVisible();
@@ -786,6 +787,7 @@ test("guest cart survives registration, checkout and later login; other sessions
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("نام تازه");
   await expect(page.locator(".account-order")).toHaveCount(1);
+  await page.screenshot({ path: test.info().outputPath("account-populated.png"), fullPage: true });
   await page.locator(".account-order").click();
   await expect(page.getByText("کیف آزمون خرید", { exact: true })).toBeVisible();
 });

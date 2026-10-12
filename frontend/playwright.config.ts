@@ -41,9 +41,9 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:3010",
     trace: "retain-on-failure",
     launchOptions: process.env.PLAYWRIGHT_BROWSER_CHANNEL
-      ? { channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL }
+      ? { channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL, timeout: 30000 }
       : browserPath
-        ? { executablePath: browserPath }
+        ? { executablePath: browserPath, timeout: 30000 }
         : undefined,
   },
   projects: [

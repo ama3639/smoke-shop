@@ -378,6 +378,20 @@ main {
   height: 100%;
   object-fit: contain;
 }
+/* Hide the mockup's baked-in heading at the upper-left crop edge; keep the lower equipment composition intact. */
+.scene-hero-image {
+  position: relative;
+}
+.scene-hero-image::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24%;
+  height: 58%;
+  background: linear-gradient(90deg, var(--background-primary) 65%, transparent);
+  pointer-events: none;
+}
 .hero-smoke {
   position: absolute;
   inset: 0 0 0 auto;

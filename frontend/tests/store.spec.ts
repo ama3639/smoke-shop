@@ -845,13 +845,15 @@ test("all Titanium routes have shared surfaces, RTL and no overflow at mobile ta
       await expect(page.locator(".header")).toBeVisible();
       await expect(page.locator(".footer")).toHaveCount(1);
       if (width === (test.info().project.name === "desktop" ? 1440 : 390)) {
-        await page.evaluate(async () =>
-          Promise.all(
-            Array.from(document.images).map((img) =>
-              img.decode().catch(() => {}),
-            ),
-          ),
-        );
+        // Edge can leave decode() pending for offscreen lazy images. Make the
+        // visible page's images eager for this full-page artifact and verify them.
+        const images = page.locator("img:visible");
+        await images.evaluateAll((elements) => {
+          for (const element of elements) (element as HTMLImageElement).loading = "eager";
+        });
+        for (const image of await images.all()) {
+          await expect.poll(() => image.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+        }
         await page.screenshot({
           path: test.info().outputPath(`route-${index}.png`),
           fullPage: true,

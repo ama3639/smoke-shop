@@ -35,3 +35,12 @@
 Product دو فیلد افزوده دارد: flavor رشته (نامعلوم خالی) و weight_grams رشته Decimal با دو رقم اعشار یا null. GET /api/v1/catalog/ فهرست flavors و weights را از کالاهای عمومی تنباکو در محدودهٔ type می‌دهد؛ گزینهٔ خالی/نامعلوم/مسدود وارد facets نمی‌شود.
 
 GET /api/v1/catalog/products/?type=tobacco&brand=...&category=...&flavor=...&weight=250 ترکیب AND دارد. flavor تطبیق دقیق با متن ثبت‌شده؛ جست‌وجوی q همچنان نرمال‌سازی فارسی دارد و طعم را هم می‌جوید. وزن باید در بازهٔ 0.01 تا 999999.99 و حداکثر دو رقم اعشار باشد؛ نامعتبر HTTP400 / INVALID_WEIGHT. وزن معتبر بدون محصول نتیجه خالی دارد. پاسخ آرایهٔ قدیمی و pagination=1 حفظ‌اند. وزن به گرم است و حجم یا وزن ناخالص از آن استنتاج نمی‌شود.
+
+
+## حساب مشتری — افزودهٔ 0.10.0
+
+`GET /api/v1/account/` پاسخ مهمان authenticated=false, orders=[]؛ پاسخ واردشده user{username,name,email}، orders{id,total,status,created_at} و pagination{page,pages,total,has_next}. order_page مثبت و اندازه۲۰. درخواست‌ها فقط cart.user همان کاربرند؛ فهرست عمومی حساب وجود ندارد.
+
+`POST /api/v1/account/` با CSRF و JSON: action=register با username,password,confirm,adult=true و name/email اختیاری؛ action=login با username/password؛ action=update برای نام/ایمیل خود کاربر؛ action=logout. UserCreationForm و AUTH_PASSWORD_VALIDATORS اعمال‌اند؛ ثبت‌نام دسترسی staff نمی‌دهد. خطای INVALID_REGISTRATION/INVALID_PROFILE/INVALID_EMAIL=400؛ LOGIN_REQUIRED/INVALID_CREDENTIALS/AGE_REQUIRED=403؛ RATE_LIMITED=429. نرخ تلاش در cache Django برای action و IP/نام کاربری کنترل می‌شود؛ پیش‌فرض cache محلی فرایند است.
+
+ورود نشست را می‌چرخاند و Cart ID، ردیف‌های Offer و رزروهای مهمان را حفظ می‌کند؛ کاربر قبلی/حساب دیگر قابل تصاحب نیست. Logout دسترسی نشست مهمان به سفارش متصل به حساب را قطع می‌کند. GET orders/:id/ برای درخواست متعلق به حساب نیاز به ورود همان حساب دارد و غیرمالک404 می‌گیرد. رمز، نقش‌ها و کاربران دیگر در پاسخ نیستند. API قیمت/موجودی/رزرو و سیاست دخانیات قبلی حفظ‌اند.

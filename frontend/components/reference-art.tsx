@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 const areas = {
-  hero: [306, 44, 444, 268],
+  hero: [385, 44, 365, 268],
   cigarette: [632, 358, 115, 105],
   vape: [509, 358, 112, 105],
   pipe: [386, 358, 112, 105],

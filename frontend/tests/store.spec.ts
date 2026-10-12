@@ -50,9 +50,7 @@ test("all fourteen seller photos load as full-frame product images", async ({
 test("RTL, local font, catalog and normalized search", async ({ page }) => {
   await page.goto("/catalog?type=cigarette");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "کاتالوگ",
-  );
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("انتخاب‌ها");
   await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كامپكت");
   await expect(page.locator(".product-card")).toHaveCount(2);
@@ -318,7 +316,7 @@ test("product photos stay intact on hover and open details with one click or tap
 test("keyboard focus keeps the packet closed and Enter opens details", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/catalog?type=cigarette");
   const card = page.locator('a.product-card[href="/products/winston-silver"]');
   await card.focus();
   await expect(card).toBeFocused();
@@ -780,7 +778,7 @@ test("guest cart survives registration, checkout and later login; other sessions
   await page.getByRole("button", { name: "خروج از حساب" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto(orderPath);
-  await expect(page.getByRole("alert")).toContainText("پیدا نشد");
+  await expect(page.locator("main").getByRole("alert")).toContainText("پیدا نشد");
   await page.goto("/login");
   await page.getByLabel("نام کاربری", { exact: true }).fill(username);
   await page.getByLabel("رمز عبور", { exact: true }).fill(password);

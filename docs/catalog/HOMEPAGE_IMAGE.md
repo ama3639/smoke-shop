@@ -1,28 +1,9 @@
-# تصویر گروهی هوم‌پیج
+# مرجع تصویری Homepage — Titanium Silver 0.10.0
 
-تصویر دوم انتخاب‌شده کاربر، چهار پاکت وینستون روی زمینه سفید با هشدار «Fumer tue» است. فایل اصلی با ابعاد 1254×1254 از لوکال در commit `e1e696f` دریافت شد. عکس در زمینه روشن کل بخش ابتدایی قرار می‌گیرد؛ قاب مستقل، سایه قاب و زمینه تیره حذف شده‌اند. متن تیره در سمت راست و روی موبایل بالای عکس قرار می‌گیرد. تصویر برش یا بازطراحی نمی‌شود.
+مرجع جاری، ماکاپ تأییدشده مالک در `frontend/public/images/titanium-reference.png` با ابعاد765×960 است. ReferenceArt ناحیه‌های تصویری Hero و شش دسته را با CSS viewport نشان می‌دهد؛ این تصاویر نمایشی‌اند، مشخصات/عکس/موجودی SKU محسوب نمی‌شوند. Header، Hero متن زنده، navigation، خدمات، دسته‌ها، کارت محصولات، پنل‌ها و Footer عناصر واقعی قابل تعامل‌اند و تصویر کل صفحه جایگزین سایت نشده است.
 
-برای تعویض تصویر در آینده، PNG را در همین مسیر ذخیره کنید:
+مرجع هندسه و پالت در [DESIGN_SYSTEM](../design/DESIGN_SYSTEM.md). دود از دو فایل محلی قبلی، فقط داخل Hero، با توقف/reduced-motion/offscreen اجرا می‌شود. عکس واقعی محصولات با contain و بدون برش مستقل از مرجع حفظ است.
 
-`D:\Smokeshop\frontend\public\images\hero\winston-collection.png`
+دارایی تاریخی `hero/winston-collection.png` با ابعاد1254×1254 و عکس‌های ۱۴ مدل Winston حفظ شده‌اند؛ در نسخه0.10 عکس گروهی Hero قبلی جای خود را به تصویر ماکاپ داده است. تغییر آن فایل اکنون Hero را عوض نمی‌کند. دستور قدیمی assets/homepage-photo برای تغییر Hero جاری کاربرد ندارد.
 
-نام و پسوند دقیق باشند؛ JPEG را با تغییر پسوند به PNG تبدیل نکنید. قاب کامل، حاشیه سفید و نوشته‌ها حفظ می‌شوند. سرور در هر درخواست هوم‌پیج وجود فایل را بررسی می‌کند؛ تا دریافت آن، عکس واقعی سیلور فروشنده نمایش داده می‌شود و تصویر خراب یا درخواست 404 ایجاد نمی‌شود.
-
-پس از توقف اجرای توسعه با Ctrl+C، در PowerShell:
-
-```powershell
-Set-Location D:\Smokeshop
-git switch main
-git pull --ff-only origin main
-git switch -c assets/homepage-photo
-New-Item -ItemType Directory -Force frontend\public\images\hero | Out-Null
-# اکنون عکس دوم را در مسیر بالا با نام winston-collection.png قرار دهید.
-git add frontend/public/images/hero/winston-collection.png
-git commit -m "assets: update Winston homepage collection photo"
-git push -u origin HEAD
-py -3.12 scripts/dev.py
-```
-
-به migration، seed یا تغییر محصول نیاز نیست. اگر سایت تولیدی دارید، فایل `public/images/hero/` همراه خروجی تولید منتشر و سرویس مجدداً راه‌اندازی شود. تست مرورگر بارگذاری عکس، نمایش کامل آن و حرکت اسکرول را بررسی می‌کند.
-
-نسخه 0.7.1: حرکت عکس و موشن دود واقعی فقط در hero، بدون تاری یا لایه ثابت کل صفحه. عکس اصلی برش یا ویرایش نشده است. پس از تغییر دارایی PR به main باز کنید.
+برای تغییر بعدی مرجع، تصویر را فقط با درخواست مالک تعویض و مختصات ReferenceArt را متناسب با تصویر جدید بررسی کنید. داده/seed/migration با تغییر دارایی لازم نیست. نمایش Desktop/Tablet/320px، موشن، تصویر SKU و اسکرین‌شات‌های CI باید بررسی شوند. main/Production خودکار تغییر نکند.

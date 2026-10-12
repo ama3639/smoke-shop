@@ -31,6 +31,12 @@ export default function ProductGallery({ product }: { product: Product }) {
             className="gallery-dialog"
             ref={dialog}
             aria-label={`تصویر ${product.title}`}
+            onKeyDown={(event) => {
+              if (event.key === "Tab") {
+                event.preventDefault();
+                dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+              }
+            }}
           >
             <button
               className="icon-button"

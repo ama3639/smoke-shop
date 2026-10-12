@@ -52,9 +52,9 @@ def serialize_products(products):
 
 
 def current_cart(request):
+    owner = request.user if request.user.is_authenticated else None
     if not request.session.session_key:
         request.session.create()
-    owner = request.user if request.user.is_authenticated else None
     cart = Cart.objects.get_or_create(session_key=request.session.session_key, defaults={'user': owner})[0]
     if cart.user_id is not None and cart.user_id != (owner.pk if owner else None):
         request.session.cycle_key()
@@ -282,6 +282,13 @@ def vendors(request):
 @require_http_methods(['GET', 'POST', 'DELETE'])
 @endpoint
 def cart(request):
+    # Header reads must not allocate competing anonymous session cookies while
+    # the age-consent POST is creating the browser's first session.
+    if request.method == 'GET':
+        request.session.get('adult', False)  # Load and discard an expired cookie before inspecting its key.
+    if request.method == 'GET' and not request.session.session_key:
+        return ok({'items': [], 'total': 0, 'checkout_enabled': FeatureFlag.enabled('order_requests'),
+                   'latest_order_id': None})
     cart_obj = current_cart(request)
     if request.method != 'GET':
         data = body(request)

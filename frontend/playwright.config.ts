@@ -60,7 +60,8 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: "npm run dev -- --port 3010",
+      command: "npm run build && npm run start -- --port 3010",
+      timeout: 180000,
       url: "http://127.0.0.1:3010",
       env: {
         BACKEND_URL: "http://127.0.0.1:8010",

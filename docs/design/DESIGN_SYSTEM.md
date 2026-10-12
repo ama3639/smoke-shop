@@ -38,4 +38,4 @@ HTML lang=fa و dir=rtl؛ semantic header/nav/main/footer، یک h1 برای ه�
 
 ## بررسی و Acceptance
 
-E2E:23مسیر در عرض320/390/768/1440، RTL، یکh1، سطح مشترک، overflow، خطای JS و screenshot. تست مستقل دود، reduced-motion، keyboard، gallery، account، cart/checkout، filters و favorites. نتیجه و check-list مالک در [PREMIUM_STOREFRONT](../deployment/PREMIUM_STOREFRONT.md). انطباق بصری نهایی و پذیرش کسب‌وکار فقط پس از تست دستی مالک؛ CI تأیید نهایی طراحی نیست.
+E2E روی build/start تولید در DB موقت:23مسیر در عرض320/390/768/1440، RTL، یکh1، سطح مشترک، overflow، خطای JS و screenshot. تست مستقل دود، reduced-motion، keyboard، gallery، account، cart/checkout، filters و favorites. نتیجه و check-list مالک در [PREMIUM_STOREFRONT](../deployment/PREMIUM_STOREFRONT.md). انطباق بصری نهایی و پذیرش کسب‌وکار فقط پس از تست دستی مالک؛ CI تأیید نهایی طراحی نیست.

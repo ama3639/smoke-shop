@@ -151,7 +151,7 @@ npm --prefix frontend run build
 npm --prefix frontend run test:e2e
 ```
 
-E2E پورت8010/3010 و دیتابیس SQLite موقت دارد؛ DATABASE_URL محیط برای E2E عمداً کنار گذاشته می‌شود. dev اصلی8000/3000 می‌تواند جدا بماند. `.next-e2e` از build اصلی جداست. Playwright فقط `*.spec.ts` می‌خواند؛ Unit Tests جدا اجرا می‌شوند.
+E2E ابتدا Build تولید جداگانه می‌سازد و سپس next start را اجرا می‌کند؛ برای آماده‌شدن حداکثر۱۸۰ثانیه زمان دارد. E2E پورت8010/3010 و دیتابیس SQLite موقت دارد؛ DATABASE_URL محیط برای E2E عمداً کنار گذاشته می‌شود. dev اصلی8000/3000 می‌تواند جدا بماند. `.next-e2e` از build اصلی جداست. Playwright فقط `*.spec.ts` می‌خواند؛ Unit Tests جدا اجرا می‌شوند.
 
 ## راهکار Chromium403 در Windows
 
@@ -228,13 +228,13 @@ docker stop smoke-shop-pg-test-010
 | محیط/بررسی | وضعیت | شاهد |
 |---|---|---|
 | Local Linux/Python3.12.14/Node24.19 | PASS جزئی | check، migration consistency، ESLint، TypeScript،۳Unit،build |
-| Backend SQLite | PASS / SKIP |۵۷کشف:۵۲PASS و۵SKIP PostgreSQL؛۸٫۱۰ثانیه |
+| Backend SQLite | PASS / SKIP |۵۸کشف:۵۳PASS و۵SKIP PostgreSQL؛ تست عدم ساخت نشست درGET سبد اضافه شد |
 | ارتقا0006→0007 SQLite موقت | PASS | ID و تمام فیلدهای موجود Category/Product/Cart/CartItem/Order حفظ؛user_id=null |
 | اجرای واقعی next start با Backend موقت | PASS | /:۶کارت؛catalog:۱۸؛hookah:۰؛accessory:۱؛نعناع250:۱؛همگی200 |
 | دارایی runtime | PASS | ماکاپPNG و هر دو فیلم دود پاسخ200 |
 | مرورگر Local | BLOCKED | CDN فایل ZIP ناقص؛ executable نصب نشد؛ تست تعامل اجرا نشد |
-| CI Linux/PostgreSQL | PENDING | [38225540426](https://github.com/ama3639/smoke-shop/actions/runs/38225540426) |
-| CI Windows/Edge یا Chrome | PENDING | همان اجرا؛ بررسی واقعی browser، نه صرفاً وجود فرمان |
+| CI Linux/PostgreSQL در2342ee4 | PASS | [38227436028](https://github.com/ama3639/smoke-shop/actions/runs/38227436028):۵۷Backend بدونSKIP و۵۶E2E؛Lint/Unit/TypeScript/Build موفق |
+| CI Windows/Edge یا Chrome | PENDING | اجرای محدود38228191623؛ بعد از نتیجه نهایی ثبت می‌شود |
 | Acceptance دستگاه مالک | NOT RUN | پس از pull و checklist زیر |
 | Production/Load/Core Web Vitals | NOT RUN | Production Deploy مجاز نیست؛ تست بار/ممیزی جامعWCAG در این کار اجرا نشده |
 
@@ -278,3 +278,6 @@ docker stop smoke-shop-pg-test-010
 PR #4 open،merge نهایی و Production Deploy انجام نشده. commit نهایی و لینک CI در گزارش PR/تحویل ثبت می‌شوند. workspace ادامه از یک نسخه محلی با تاریخچه کپی‌شده بود؛ تغییرهای مجاز فقط روی parent واقعی c66a48f در ریموت اعمال شدند، فایل‌های نامرتبط ریموت حفظ‌اند.
 
 برای برگشت توسعه، ابتدا سرویس‌ها را متوقف و از وضعیت فعلی backup بگیرید. اجرای reset/clean یا migration معکوس خودکار مجاز نیست؛ نسخه کد و backup سازگار را در محیط جدا بررسی کنید. برگشت به0.9 مالک حساب را پشتیبانی نمی‌کند و نباید روی DB مهاجرت‌یافته بدون تصمیم بازیابی اجرا شود.
+
+
+اصلاح Regression Windows: خواندن سبد خالی بدون کوکی نشست دیگر Cart/Session جدید نمی‌سازد؛ پاسخAPI همان shape قبلی دارد. این تغییر رقابت Set-Cookie هدر با ثبت تأیید۱۸+ را حذف می‌کند. تستbackend اختصاصی این رفتار و امکان افزودن بعد از تأیید را پوشش می‌دهد. شمار فعلیbackend۵۸ است؛۵۷ مربوط به اجراهای قبلی است. اجرای E2E به build/start مطابق راهنمای نصب‌شده Next.js منتقل شد؛ timeout مرور۲۳مسیر پنج دقیقه است و افزایش آن هیچ assertion را حذف نکرده است.

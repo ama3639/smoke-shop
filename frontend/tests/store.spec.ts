@@ -795,7 +795,7 @@ test("guest cart survives registration, checkout and later login; other sessions
 test("all Titanium routes have shared surfaces, RTL and no overflow at mobile tablet desktop widths", async ({
   page,
 }) => {
-  test.setTimeout(180000);
+  test.setTimeout(300000);
   const routes = [
     "/",
     "/catalog",

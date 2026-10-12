@@ -67,6 +67,25 @@ class ShopTests(TestCase):
         FeatureFlag.objects.filter(key='cart').update(is_enabled=False)
         self.assertEqual(self.add().status_code, 403)
 
+    def test_anonymous_cart_read_does_not_allocate_a_competing_session(self):
+        from django.conf import settings
+        from django.contrib.sessions.models import Session
+        guest = Client()
+        before_carts, before_sessions = Cart.objects.count(), Session.objects.count()
+        response = guest.get('/api/v1/cart/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['data'], {'items': [], 'total': 0,
+            'checkout_enabled': True, 'latest_order_id': None})
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, response.cookies)
+        self.assertEqual(Cart.objects.count(), before_carts)
+        self.assertEqual(Session.objects.count(), before_sessions)
+        guest.cookies[settings.SESSION_COOKIE_NAME] = 'expired-test-session'
+        self.assertEqual(guest.get('/api/v1/cart/').json()['data']['items'], [])
+        self.assertEqual(Cart.objects.count(), before_carts)
+        self.assertEqual(Session.objects.count(), before_sessions)
+        guest.post('/api/v1/session/', {'adult': True}, content_type='application/json')
+        self.assertEqual(self.add(client=guest).status_code, 200)
+
     def test_age_requires_boolean_true(self):
         for adult in [False, 'true', 1, None]:
             self.client.post('/api/v1/session/', {'adult': adult}, content_type='application/json')

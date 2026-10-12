@@ -763,6 +763,7 @@ test("guest cart survives registration, checkout and later login; other sessions
   await expect(page.locator(".cart-row")).toHaveCount(1);
   await page.getByRole("link", { name: "ادامه و بررسی درخواست" }).click();
   await expect(page).toHaveURL(/\/checkout$/);
+  await expect(page.locator(".cart-row")).toHaveCount(1);
   await page.screenshot({ path: test.info().outputPath("checkout-populated.png"), fullPage: true });
   await page.getByRole("button", { name: "ثبت درخواست سفارش" }).click();
   const track = page.getByRole("link", { name: "مشاهده وضعیت سفارش" });
@@ -852,8 +853,14 @@ test("all Titanium routes have shared surfaces, RTL and no overflow at mobile ta
           for (const element of elements) (element as HTMLImageElement).loading = "eager";
         });
         for (const image of await images.all()) {
+          await image.scrollIntoViewIfNeeded();
           await expect.poll(() => image.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+          await image.evaluate(el => Promise.race([
+            (el as HTMLImageElement).decode(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Image decode timed out")), 5000)),
+          ]));
         }
+        await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
         await page.screenshot({
           path: test.info().outputPath(`route-${index}.png`),
           fullPage: true,

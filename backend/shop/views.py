@@ -1,6 +1,12 @@
 import json
 from decimal import Decimal, InvalidOperation
 import uuid
+import hashlib
+from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.forms import UserCreationForm
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from functools import wraps
 from django.db import transaction
 from django.db.models import Q, Max
@@ -46,9 +52,121 @@ def serialize_products(products):
 
 
 def current_cart(request):
+    owner = request.user if request.user.is_authenticated else None
     if not request.session.session_key:
         request.session.create()
-    return Cart.objects.get_or_create(session_key=request.session.session_key)[0]
+    cart = Cart.objects.get_or_create(session_key=request.session.session_key, defaults={'user': owner})[0]
+    if cart.user_id is not None and cart.user_id != (owner.pk if owner else None):
+        request.session.cycle_key()
+        return Cart.objects.create(session_key=request.session.session_key, user=owner)
+    if owner and cart.user_id is None:
+        cart.user = owner
+        cart.save(update_fields=['user'])
+    return cart
+
+
+def account_response(request):
+    if not request.user.is_authenticated:
+        return ok({'authenticated': False, 'orders': []})
+    try:
+        page = int(request.GET.get('order_page', '1'))
+        if page < 1:
+            raise ValueError
+    except ValueError:
+        raise ShopError('INVALID_PAGE', 'صفحه درخواست‌ها معتبر نیست.')
+    orders = Order.objects.filter(cart__user=request.user).order_by('-created_at')
+    paginator = Paginator(orders, 20)
+    return ok({'authenticated': True,
+               'user': {'username': request.user.username, 'name': request.user.first_name, 'email': request.user.email},
+               'orders': list(orders[(page - 1) * 20:page * 20].values('id', 'total', 'status', 'created_at')),
+               'pagination': {'page': page, 'pages': paginator.num_pages, 'total': paginator.count, 'has_next': page < paginator.num_pages}})
+
+
+def claim_guest_cart(request, old_key):
+    # Keep the cart ID, offer rows and historical reservations across Django's session rotation.
+    if not old_key:
+        return
+    with transaction.atomic():
+        previous = Cart.objects.select_for_update().filter(session_key=old_key).filter(Q(user__isnull=True) | Q(user=request.user)).first()
+        if previous:
+            previous.session_key = request.session.session_key
+            previous.user = request.user
+            previous.save(update_fields=['session_key', 'user'])
+
+
+def throttle_account(request, action, username):
+    identity = request.META.get('REMOTE_ADDR', '') + '|' + username.casefold()
+    key = 'account:' + action + ':' + hashlib.sha256(identity.encode()).hexdigest()
+    cache.add(key, 0, timeout=600)
+    try:
+        attempts = cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=600)
+        attempts = 1
+    if attempts > (5 if action == 'register' else 10):
+        raise ShopError('RATE_LIMITED', 'تعداد تلاش‌ها بیش از حد مجاز است؛ کمی بعد دوباره تلاش کنید.', 429)
+    return key
+
+
+def profile_values(data):
+    name, email = data.get('name', ''), data.get('email', '')
+    if not isinstance(name, str) or len(name) > 150 or not isinstance(email, str) or len(email) > 254:
+        raise ShopError('INVALID_PROFILE', 'مشخصات حساب معتبر نیست.')
+    name, email = name.strip(), email.strip()
+    try:
+        if email:
+            validate_email(email)
+    except ValidationError:
+        raise ShopError('INVALID_EMAIL', 'ایمیل معتبر وارد کنید.')
+    return name, email
+
+
+@require_http_methods(['GET', 'POST'])
+@endpoint
+def account(request):
+    if request.method == 'GET':
+        return account_response(request)
+    data = body(request)
+    action = data.get('action')
+    if action == 'logout':
+        logout(request)
+        return account_response(request)
+    if action == 'update':
+        if not request.user.is_authenticated:
+            raise ShopError('LOGIN_REQUIRED', 'ابتدا وارد حساب شوید.', 403)
+        request.user.first_name, request.user.email = profile_values(data)
+        request.user.save(update_fields=['first_name', 'email'])
+        return account_response(request)
+    if action not in ('login', 'register'):
+        raise ShopError('INVALID_ACTION', 'عملیات حساب معتبر نیست.')
+    if request.user.is_authenticated:
+        raise ShopError('ALREADY_SIGNED_IN', 'برای ورود به حساب دیگر ابتدا خارج شوید.')
+    username, password = data.get('username', ''), data.get('password', '')
+    if not isinstance(username, str) or not (3 if action == 'register' else 1) <= len(username) <= 150 or not isinstance(password, str) or not 1 <= len(password) <= 128:
+        raise ShopError('INVALID_CREDENTIALS', 'نام کاربری یا رمز عبور معتبر نیست.')
+    username = get_user_model().normalize_username(username.strip())
+    throttle_key = throttle_account(request, action, '' if action == 'register' else username)
+    old_key = request.session.session_key
+    if action == 'register':
+        if data.get('adult') is not True:
+            raise ShopError('AGE_REQUIRED', 'تأیید ۱۸ سال برای ثبت‌نام لازم است.', 403)
+        form = UserCreationForm({'username': username, 'password1': password, 'password2': data.get('confirm', '')})
+        if not form.is_valid():
+            raise ShopError('INVALID_REGISTRATION', ' '.join(str(message) for errors in form.errors.values() for message in errors))
+        name, email = profile_values(data)
+        user = form.save(commit=False)
+        user.first_name, user.email = name, email
+        user.save()
+        login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+        request.session['adult'] = True
+    else:
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            raise ShopError('INVALID_CREDENTIALS', 'نام کاربری یا رمز عبور صحیح نیست.', 403)
+        login(request, user)
+        cache.delete(throttle_key)
+    claim_guest_cart(request, old_key)
+    return account_response(request)
 
 
 @require_http_methods(['GET'])
@@ -164,6 +282,13 @@ def vendors(request):
 @require_http_methods(['GET', 'POST', 'DELETE'])
 @endpoint
 def cart(request):
+    # Header reads must not allocate competing anonymous session cookies while
+    # the age-consent POST is creating the browser's first session.
+    if request.method == 'GET':
+        request.session.get('adult', False)  # Load and discard an expired cookie before inspecting its key.
+    if request.method == 'GET' and not request.session.session_key:
+        return ok({'items': [], 'total': 0, 'checkout_enabled': FeatureFlag.enabled('order_requests'),
+                   'latest_order_id': None})
     cart_obj = current_cart(request)
     if request.method != 'GET':
         data = body(request)
@@ -249,7 +374,10 @@ def order_create(request):
 @require_http_methods(['GET'])
 @endpoint
 def order_detail(request, pk):
-    obj = Order.objects.filter(pk=pk, cart__session_key=request.session.session_key).first()
+    allowed = Q(cart__user__isnull=True, cart__session_key=request.session.session_key)
+    if request.user.is_authenticated:
+        allowed |= Q(cart__user=request.user)
+    obj = Order.objects.filter(allowed, pk=pk).first()
     if not obj:
         raise ShopError('NOT_FOUND', 'سفارش پیدا نشد.', 404)
     return ok({'id': str(obj.pk), 'total': obj.total, 'status': obj.status,

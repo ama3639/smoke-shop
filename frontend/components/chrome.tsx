@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { ArrowUpLeft, ShoppingBag, ScanLine, Search } from "lucide-react";
+import { ArrowUpLeft, Flame, Search } from "lucide-react";
 import { catalogRoutes } from "./catalog-sections";
+import HeaderActions from "./header-actions";
+import { ServiceRow } from "./home-content";
 
 export function Header() {
   return (
@@ -13,28 +15,47 @@ export function Header() {
         <div className="container header-inner">
           <Link href="/" className="brand" aria-label="اسموک‌شاپ، صفحه اصلی">
             <span className="brand-icon">
-              <ScanLine size={23} strokeWidth={1.5} />
+              <Flame size={29} strokeWidth={1.3} />
             </span>
             <span>
               اسموک‌شاپ<small>SMOKESHOP / CATALOG</small>
             </span>
           </Link>
-          <form action="/catalog" className="header-search" role="search" aria-label="جست‌وجوی کل کاتالوگ">
+          <form
+            action="/search"
+            className="header-search"
+            role="search"
+            aria-label="جست‌وجوی کل کاتالوگ"
+          >
             <Search size={18} aria-hidden="true" />
-            <input type="search" name="q" aria-label="جست‌وجوی همه کالاها" placeholder="جست‌وجوی کالا، مدل یا برند" maxLength={100} />
-            <button type="submit" aria-label="اجرای جست‌وجو"><ArrowUpLeft size={18} /></button>
+            <input
+              type="search"
+              name="q"
+              aria-label="جست‌وجوی همه کالاها"
+              placeholder="جست‌وجوی کالا، مدل یا برند"
+              maxLength={100}
+            />
+            <button type="submit" aria-label="اجرای جست‌وجو">
+              <ArrowUpLeft size={18} />
+            </button>
           </form>
-          <Link href="/cart" className="cart-link" aria-label="سبد اقلام مجاز">
-            <ShoppingBag size={19} />
-            <span>سبد اقلام مجاز</span>
-          </Link>
+          <HeaderActions />
         </div>
         <div className="container header-navigation">
           <nav aria-label="منوی اصلی">
-            {catalogRoutes.map(route => <Link key={route.href} href={route.href}>{route.title}</Link>)}
+            {catalogRoutes.map((route) => (
+              <Link key={route.href} href={route.href}>
+                {route.title}
+              </Link>
+            ))}
+            <Link href="/brands">برندها</Link>
             <Link href="/catalog">همه کالاها</Link>
           </nav>
-          <div className="header-utilities"><Link href="/sellers">فروشندگان</Link><Link href="/branches">شعب حضوری</Link><Link href="/guide">راهنمای عرضه</Link></div>
+          <div className="header-utilities">
+            <Link href="/sellers">فروشندگان</Link>
+            <Link href="/branches">شعب حضوری</Link>
+            <Link href="/guide">راهنمای عرضه</Link>
+          </div>
         </div>
       </header>
     </>
@@ -43,6 +64,7 @@ export function Header() {
 export function Footer() {
   return (
     <footer className="footer">
+      <ServiceRow />
       <div className="container footer-top">
         <div>
           <Link className="footer-brand" href="/">
@@ -58,8 +80,10 @@ export function Footer() {
           <Link href="/catalog">
             همه کالاها <ArrowUpLeft size={15} />
           </Link>
-          <Link href="/sellers">فروشندگان <ArrowUpLeft size={15} /></Link>
-          <Link href="/#wholesale">
+          <Link href="/sellers">
+            فروشندگان <ArrowUpLeft size={15} />
+          </Link>
+          <Link href="/guide">
             همکاری عمده <ArrowUpLeft size={15} />
           </Link>
           <Link href="/branches">
@@ -84,4 +108,3 @@ export function Footer() {
     </footer>
   );
 }
-

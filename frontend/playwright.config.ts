@@ -1,11 +1,38 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
 
-const python =
+const python = resolve(
+  "../backend/.venv",
+  process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
+);
+const backendScript = resolve("../scripts/e2e_backend.py");
+const installedBrowser =
   process.platform === "win32"
-    ? "../backend/.venv/Scripts/python.exe"
-    : "../backend/.venv/bin/python";
+    ? [
+        join(
+          process.env["PROGRAMFILES(X86)"] || "C:/Program Files (x86)",
+          "Microsoft/Edge/Application/msedge.exe",
+        ),
+        join(
+          process.env.PROGRAMFILES || "C:/Program Files",
+          "Microsoft/Edge/Application/msedge.exe",
+        ),
+        join(
+          process.env.PROGRAMFILES || "C:/Program Files",
+          "Google/Chrome/Application/chrome.exe",
+        ),
+        join(
+          process.env.LOCALAPPDATA || "C:/",
+          "Google/Chrome/Application/chrome.exe",
+        ),
+      ].find(existsSync)
+    : undefined;
+const browserPath =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || installedBrowser;
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.spec.ts",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
@@ -13,9 +40,11 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3010",
     trace: "retain-on-failure",
-    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
-      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
-      : undefined,
+    launchOptions: process.env.PLAYWRIGHT_BROWSER_CHANNEL
+      ? { channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL, timeout: 30000 }
+      : browserPath
+        ? { executablePath: browserPath, timeout: 30000 }
+        : undefined,
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
@@ -26,12 +55,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `${python} ../scripts/e2e_backend.py`,
+      command: `"${python}" "${backendScript}"`,
       url: "http://127.0.0.1:8010/api/v1/health/",
       reuseExistingServer: false,
     },
     {
-      command: "npm run dev -- --port 3010",
+      command: "npm run build && npm run start -- --port 3010",
+      timeout: 180000,
       url: "http://127.0.0.1:3010",
       env: {
         BACKEND_URL: "http://127.0.0.1:8010",

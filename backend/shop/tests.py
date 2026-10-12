@@ -67,6 +67,25 @@ class ShopTests(TestCase):
         FeatureFlag.objects.filter(key='cart').update(is_enabled=False)
         self.assertEqual(self.add().status_code, 403)
 
+    def test_anonymous_cart_read_does_not_allocate_a_competing_session(self):
+        from django.conf import settings
+        from django.contrib.sessions.models import Session
+        guest = Client()
+        before_carts, before_sessions = Cart.objects.count(), Session.objects.count()
+        response = guest.get('/api/v1/cart/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['data'], {'items': [], 'total': 0,
+            'checkout_enabled': True, 'latest_order_id': None})
+        self.assertNotIn(settings.SESSION_COOKIE_NAME, response.cookies)
+        self.assertEqual(Cart.objects.count(), before_carts)
+        self.assertEqual(Session.objects.count(), before_sessions)
+        guest.cookies[settings.SESSION_COOKIE_NAME] = 'expired-test-session'
+        self.assertEqual(guest.get('/api/v1/cart/').json()['data']['items'], [])
+        self.assertEqual(Cart.objects.count(), before_carts)
+        self.assertEqual(Session.objects.count(), before_sessions)
+        guest.post('/api/v1/session/', {'adult': True}, content_type='application/json')
+        self.assertEqual(self.add(client=guest).status_code, 200)
+
     def test_age_requires_boolean_true(self):
         for adult in [False, 'true', 1, None]:
             self.client.post('/api/v1/session/', {'adult': adult}, content_type='application/json')
@@ -568,6 +587,102 @@ class MarketplaceTests(TestCase):
         self.assertEqual(LedgerAdmin(StockLedger, AdminSite()).get_queryset(request).count(), 2)
         self.assertFalse(OfferAdmin(Offer, AdminSite()).has_change_permission(request))
 
+
+
+class AccountTests(TestCase):
+    password = 'T1tanium-safe-Complex$2026'
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.category = Category.objects.create(title='Account test', slug='account-test', online_enabled=True)
+        self.product = Product.objects.create(title='Account case', slug='account-case', sku='ACCOUNT-CASE',
+            category=self.category, price=100000, stock=5, legal_status='APPROVED_ONLINE', legal_reference='test-only')
+        FeatureFlag.objects.create(key='cart', is_enabled=True)
+        FeatureFlag.objects.create(key='order_requests', is_enabled=True)
+
+    def post(self, data, client=None):
+        return (client or self.client).post('/api/v1/account/', data, content_type='application/json')
+
+    def register(self, username='titanium-user'):
+        return self.post({'action': 'register', 'username': username, 'password': self.password,
+            'confirm': self.password, 'adult': True, 'name': 'نام آزمون', 'email': 'test@example.com'})
+
+    def test_register_preserves_guest_cart_and_creates_only_regular_user(self):
+        self.client.post('/api/v1/session/', {'adult': True}, content_type='application/json')
+        self.client.post('/api/v1/cart/', {'product_id': self.product.pk, 'quantity': 2}, content_type='application/json')
+        before = Cart.objects.get(session_key=self.client.session.session_key)
+        self.assertEqual(self.register().status_code, 200)
+        user = User.objects.get(username='titanium-user')
+        self.assertTrue(user.check_password(self.password))
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertEqual(user.email, 'test@example.com')
+        before.refresh_from_db()
+        self.assertEqual(before.user, user)
+        self.assertEqual(before.session_key, self.client.session.session_key)
+        self.assertEqual(self.client.get('/api/v1/cart/').json()['data']['items'][0]['quantity'], 2)
+        self.assertEqual(self.client.get('/api/v1/cart/').json()['data']['total'], 200000)
+
+    def test_guest_orders_become_private_account_history_across_logout_login(self):
+        self.client.post('/api/v1/session/', {'adult': True}, content_type='application/json')
+        self.client.post('/api/v1/cart/', {'product_id': self.product.pk}, content_type='application/json')
+        result = self.client.post('/api/v1/orders/', {'idempotency_key': str(uuid.uuid4())}, content_type='application/json')
+        oid = result.json()['data']['id']
+        self.assertEqual(self.register().status_code, 200)
+        self.assertEqual(self.client.get('/api/v1/account/').json()['data']['orders'][0]['id'], oid)
+        self.post({'action': 'logout'})
+        self.assertEqual(self.client.get('/api/v1/orders/' + oid + '/').status_code, 404)
+        self.assertEqual(self.client.get('/api/v1/account/').json()['data']['orders'], [])
+        self.post({'action': 'login', 'username': 'titanium-user', 'password': self.password})
+        self.assertEqual(self.client.get('/api/v1/orders/' + oid + '/').status_code, 200)
+        other = Client()
+        User.objects.create_user(username='other-user', password=self.password)
+        self.post({'action': 'login', 'username': 'other-user', 'password': self.password}, client=other)
+        self.assertEqual(other.get('/api/v1/orders/' + oid + '/').status_code, 404)
+        self.assertEqual(other.get('/api/v1/account/').json()['data']['orders'], [])
+
+    def test_invalid_registration_profile_and_weak_password_do_not_write_user(self):
+        data = {'action': 'register', 'username': 'bad-user', 'password': self.password, 'confirm': self.password}
+        self.assertEqual(self.post(data).status_code, 403)
+        data['adult'] = True
+        data['password'] = data['confirm'] = '12345678'
+        self.assertEqual(self.post(data).status_code, 400)
+        data['password'] = data['confirm'] = self.password
+        data['email'] = 'invalid'
+        self.assertEqual(self.post(data).status_code, 400)
+        self.assertFalse(User.objects.filter(username='bad-user').exists())
+
+    def test_authentication_requires_csrf_and_profile_update_is_scoped(self):
+        client = Client(enforce_csrf_checks=True)
+        self.assertEqual(self.post({'action': 'login', 'username': 'test', 'password': 'bad'}, client).status_code, 403)
+        self.register()
+        self.assertEqual(self.post({'action': 'update', 'name': 'جدید', 'email': 'new@example.com'}).status_code, 200)
+        self.assertEqual(User.objects.get(username='titanium-user').first_name, 'جدید')
+        self.assertEqual(self.post({'action': 'update', 'name': {}, 'email': ''}).status_code, 400)
+        self.assertEqual(self.post({'action': 'update', 'name': 'بدون تغییر', 'email': 'bad'}).status_code, 400)
+        self.post({'action': 'logout'})
+        self.assertEqual(self.post({'action': 'update', 'name': 'No', 'email': ''}).status_code, 403)
+
+    def test_login_throttle_and_existing_short_username(self):
+        User.objects.create_user(username='a', password=self.password)
+        self.assertEqual(self.post({'action': 'login', 'username': 'a', 'password': self.password}).status_code, 200)
+        self.post({'action': 'logout'})
+        for _ in range(10):
+            self.assertEqual(self.post({'action': 'login', 'username': 'a', 'password': 'wrong'}).status_code, 403)
+        self.assertEqual(self.post({'action': 'login', 'username': 'a', 'password': 'wrong'}).status_code, 429)
+
+    def test_order_history_is_paginated_and_owned(self):
+        self.register()
+        cart = Cart.objects.create(session_key='historical-cart', user=User.objects.get(username='titanium-user'))
+        Order.objects.bulk_create([Order(cart=cart, idempotency_key=uuid.uuid4(), total=i) for i in range(21)])
+        first = self.client.get('/api/v1/account/').json()['data']
+        second = self.client.get('/api/v1/account/', {'order_page': 2}).json()['data']
+        self.assertEqual(len(first['orders']), 20)
+        self.assertEqual(len(second['orders']), 1)
+        self.assertTrue(first['pagination']['has_next'])
+        self.assertEqual(first['pagination']['total'], 21)
+        self.assertEqual(self.client.get('/api/v1/account/', {'order_page': 0}).status_code, 400)
 
 
 class TobaccoFacetTests(TestCase):

@@ -7,7 +7,12 @@ type Order = {
   total: number;
   status: string;
   expires_at: string | null;
-  items: { title: string; quantity: number; unit_price: number; seller_name: string }[];
+  items: {
+    title: string;
+    quantity: number;
+    unit_price: number;
+    seller_name: string;
+  }[];
 };
 export default function OrderPage({
   params,
@@ -33,11 +38,20 @@ export default function OrderPage({
           <p>
             {order.status === "CANCELLED"
               ? "سفارش لغو شده است."
-              : order.status === "EXPIRED" ? "مهلت درخواست پایان یافته و موجودی آزاد شده است."
-              : "در انتظار بررسی اپراتور؛ پرداختی انجام نشده است."}
+              : order.status === "EXPIRED"
+                ? "مهلت درخواست پایان یافته و موجودی آزاد شده است."
+                : "در انتظار بررسی اپراتور؛ پرداختی انجام نشده است."}
           </p>
           <code dir="ltr">{order.id}</code>
-          {order.status === "PENDING_REVIEW" && order.expires_at && <p>مهلت رزرو: {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.expires_at))}</p>}
+          {order.status === "PENDING_REVIEW" && order.expires_at && (
+            <p>
+              مهلت رزرو:{" "}
+              {new Intl.DateTimeFormat("fa-IR", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }).format(new Date(order.expires_at))}
+            </p>
+          )}
           {order.items.map((i, index) => (
             <div className="compatibility-row" key={index}>
               <strong>{i.title}</strong>
@@ -48,7 +62,10 @@ export default function OrderPage({
             </div>
           ))}
           <p>جمع: {money(order.total)}</p>
-          <p>برای مشاهده مجدد این سفارش، از همین مرورگر استفاده کنید.</p>
+          <p>
+            درخواست مهمان در همین نشست مرورگر قابل پیگیری است؛ درخواست متصل به
+            حساب پس از ورود از حساب کاربری در دسترس است.
+          </p>
         </>
       ) : (
         <p role="status">در حال دریافت وضعیت…</p>

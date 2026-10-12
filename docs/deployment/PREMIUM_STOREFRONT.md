@@ -1,4 +1,40 @@
-# Titanium Silver — تحویل 0.10.0
+# Titanium Silver — تحویل 0.10.1
+
+## ادامه Validation و امنیت — 0.10.1
+
+ادامه از remote `8a26a2f` با حفظ کد/طراحی/داده. نسخه فقط برای ثبت تغییر مستندات و گیت Audit تولید به 0.10.1 رسیده؛ dependency resolution/integrity، تست‌ها، تایم‌اوت‌ها، تصاویر و migration تغییر نکرده‌اند. نتیجه CI روی SHA جدید در PR #4 گزارش می‌شود؛ CI #32 مربوط به baseline 0.10.0 است.
+
+لاگ جدید Windows مالک: `1 passed (32.3s)` برای Mobile/tobacco filter؛ Backend8010 و Build/Start3010 هر دو آماده شدند. ECONNREFUSED پیش از آماده‌شدن، polling طبیعی است؛ NativeCommandError نمایشی PowerShell هنگام redirect کردن stderr DEBUG به معنی FAIL این اجرای موفق نیست. Broken pipe پس از `Terminating the WebServer` هنگام پایان موفق، به‌تنهایی دلیل خرابی سایت نیست.
+
+علت دو خروج قبلی Startup با code1 اثبات نشده؛ در اجرای اخیر بازتولید نشد. باقی‌ماندن فرآیند/قفل Build پس از قطع تست یا اجرای هم‌زمان روی همان `.next-e2e` فرضیه‌اند، نه root cause تأییدشده. تغییر کد برای این فرضیه‌ها اعمال نشد. فقط یک اجرای E2E هم‌زمان داشته باشید؛ Playwright فرآیندهای آزمون خودش را متوقف می‌کند. هیچ process kill عمومی یا پاک‌کردن Build لازم نیست.
+
+suite کامل Windows مالک: در لاگ اول ۴۷ موفق و شماره۴۸ با علامت شکست دیده شد، بدون assertion/summary کامل؛ نتایج۴۹–۵۶ ارائه نشدند. اجرای هدفمند جدید شماره۴۸ موفق است ولی جای suite کامل نیست. اجرای کامل روی دستگاه مالک هنوز NOT RUN/تأییدنشده و دسترسی مستقیم عامل به آن دستگاه BLOCKED است. اجرای Windows CI با Edge، Build تولید و DB موقت مستقل از آن گزارش می‌شود. PostgreSQL لوکال مالک NOT RUN (Docker شناخته نمی‌شود)؛ CI Linux PostgreSQL واقعی را پوشش می‌دهد.
+
+full Audit پنج High از یک Advisory بدون patch در ابزار توسعه، Production Audit صفر؛ ریسک توسعه رفع نشده است. [Security Notes](../SECURITY_NOTES.md) شامل تحلیل caller، Advisory و برنامه اصلاح سازگار است. `audit fix --force`، Downgrade یا override استفاده نشد.
+
+برای گرفتن نتیجه کامل، هر فرمان مستقل و در ترمینال آزمون؛ متغیر DEBUG اختیاری است و فقط لاگ startup را روشن می‌کند:
+
+```powershell
+Set-Location D:\Smokeshop
+```
+
+```powershell
+$env:PLAYWRIGHT_BROWSER_CHANNEL = "msedge"
+```
+
+```powershell
+$env:DEBUG = "pw:webserver"
+```
+
+```powershell
+npm --prefix frontend run test:e2e -- --reporter=list 2>&1 | Tee-Object -FilePath "$env:TEMP\smoke-shop-full-e2e.log"
+```
+
+```powershell
+$LASTEXITCODE
+```
+
+قبولی suite کامل نیازمند `56 passed` و exit0 است. خروجی را به ترمینال به‌عنوان فرمان Paste نکنید و پیش از Summary اجرا را قطع نکنید. اگر Startup دوباره شکست خورد، همین لاگ stdout/stderr علت واقعی را ثبت می‌کند. checksum/count CI و checklist۲۶ردیفی پایین همچنان معتبرند؛ همه ردیف‌های Acceptance مالک تا گزارش دستی NOT RUN هستند.
 
 تاریخ2026-10-12. مخزن `ama3639/smoke-shop`، برنچ `feature/titanium-silver-storefront`؛ مبنای واقعی ریموت `c66a48fc62deca8be28ed6e145f7b15e5f26c8a3`. PRهای #3 و #2 طبق دستور قبلی ادغام شدند. [PR #4](https://github.com/ama3639/smoke-shop/pull/4) نسخه جاری را برای review نگه می‌دارد؛ main/Production برای این تغییر منتشر نمی‌شوند. Acceptance مالک جدا و فعلاً NOT RUN است.
 

@@ -1,6 +1,6 @@
 # docs/README.md — فهرست و نقشه مستندات
 
-> **نسخه:** 0.10.0
+> **نسخه:** 0.10.1
 > **تاریخ:** 2026-10-12
 > **به‌روزرسانی شود:** با افزودن یا حذف هر سند
 
@@ -129,6 +129,8 @@ smokeshop/
 
 
 ## مسیرهای جاری Titanium Silver
+
+- [Security Notes](SECURITY_NOTES.md): Advisory توسعه بدون patch، Audit تولید و برنامه رفع سازگار؛ نتیجه تست کامل لوکال مستقل از CI است.
 
 - [Design System](design/DESIGN_SYSTEM.md): مرجع ماکاپ، tokens، کامپوننت، RTL، motion و تصاویر.
 - [گزارش و Acceptance / Windows](deployment/PREMIUM_STOREFRONT.md): دستور مستقل، validation و چک‌لیست مالک.

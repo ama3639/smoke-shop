@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [0.10.1] — 2026-10-12
+
+- تحلیل لاگ Windows مالک: تست هدفمند Mobile موفق (`1 passed (32.3s)`)، هر دو سرور E2E آماده شدند؛ خطای Startup قبلی بازتولید نشد و علت آن اثبات نشده است. اجرای کامل لوکال همچنان تأیید نشده؛ تست/timeout/Design System تغییر نکرده‌اند.
+- مستندسازی GHSA-vfj7-8cjw-p6xm / CVE-2026-93687 در ابزار توسعه: پنج High ناشی از یک Advisory، Audit تولید صفر؛ نسخه اصلاح‌شده سازگار منتشر نشده و ریسک توسعه باقی است. هیچ `audit fix --force`، Downgrade یا override اعمال نشده است.
+- اضافه‌شدن Audit وابستگی‌های تولید به هر دو Job CI؛ نسخه Package/Lockfile فقط در metadata تغییر کرده و resolution/integrity وابستگی‌ها حفظ است.
+- Security Notes، دستور Windows و وضعیت Acceptance به‌روز؛ merge و Production Deploy مجاز نیستند.
+
 ## [0.10.0] — 2026-10-12
 
 - تم E — Titanium Silver مطابق ماکاپ مالک: Design Tokens مشترک، Header/Search، Hero با دود محلی، شش دسته تصویری، شش محصول منتخب و چهار پنل معرفی؛ عکس SKU و اطلاعات واقعی حفظ‌اند.

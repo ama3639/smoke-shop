@@ -46,6 +46,9 @@ jobs:
       - run: backend/.venv/bin/python backend/manage.py test shop
       - run: npm ci
         working-directory: frontend
+      - name: Audit production dependencies (development exception in Security Notes)
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
       - run: npm run typecheck
         working-directory: frontend
       - run: npm run lint
@@ -85,6 +88,9 @@ jobs:
       - run: backend/.venv/Scripts/python.exe backend/manage.py makemigrations --check --dry-run
       - run: backend/.venv/Scripts/python.exe backend/manage.py test shop
       - run: npm ci
+        working-directory: frontend
+      - name: Audit production dependencies (development exception in Security Notes)
+        run: npm audit --omit=dev --audit-level=high
         working-directory: frontend
       - run: npm run typecheck
         working-directory: frontend

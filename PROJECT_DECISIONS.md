@@ -238,6 +238,12 @@
 ادامه از SHA 2c02171 در feature/editorial-hookah-tobacco با PR جدا به feature/premium-storefront است؛ این درخواست مجوز ادغام PR #2 به main یا انتشار production نیست.
 
 
+### [DEC-030] Validation Windows و Advisory توسعه — 0.10.1 (2026-10-12)
+
+مالک ادامه رفع E2E و بررسی npm Audit را مجاز کرد؛ merge نهایی و Production Deploy همچنان ممنوع‌اند. تست هدفمند Mobile روی دستگاه مالک موفق است؛ suite کامل لوکال با CI متفاوت گزارش می‌شود. خطای Startup قدیمی در لاگ جدید تکرار نشده و root cause اثبات نشده؛ تغییر speculative به Playwright/طراحی انجام نمی‌شود.
+
+یک Advisory بدون patched release در braces از زنجیره ESLint توسعه به پنج High سرایت کرده است. Production Audit صفر است. force downgrade به eslint-config-next14، override نسخه بدون patch یا حذف lint مجاز نیست. وابستگی‌ها حفظ، ریسک باقی‌مانده و برنامه patch آینده در Security Notes ثبت و گیت Audit تولید به دو Job CI افزوده می‌شود. این تصمیم به معنی پذیرش Production یا رفع آسیب‌پذیری نیست.
+
 ### [DEC-029] Titanium Silver و صفحات کامل — 0.10.0 (2026-10-12)
 
 مالک تم E و ماکاپ خود را مرجع نهایی انتخاب و تکمیل ۱۱ فاز را مجاز کرد. PR #3 و سپس #2 طبق همان مجوز در main ادغام شدند؛ برنچ جدید از c66a48f و PR #4 به main است. مجوز بازطراحی شامل Production Deploy یا merge نسخه نهایی پیش از Acceptance مالک نیست.

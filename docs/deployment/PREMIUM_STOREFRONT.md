@@ -232,9 +232,9 @@ docker stop smoke-shop-pg-test-010
 | ارتقا0006→0007 SQLite موقت | PASS | ID و تمام فیلدهای موجود Category/Product/Cart/CartItem/Order حفظ؛user_id=null |
 | اجرای واقعی next start با Backend موقت | PASS | /:۶کارت؛catalog:۱۸؛hookah:۰؛accessory:۱؛نعناع250:۱؛همگی200 |
 | دارایی runtime | PASS | ماکاپPNG و هر دو فیلم دود پاسخ200 |
-| مرورگر Local | BLOCKED | CDN فایل ZIP ناقص؛ executable نصب نشد؛ تست تعامل اجرا نشد |
-| CI Linux/PostgreSQL در2342ee4 | PASS | [38227436028](https://github.com/ama3639/smoke-shop/actions/runs/38227436028):۵۷Backend بدونSKIP و۵۶E2E؛Lint/Unit/TypeScript/Build موفق |
-| CI Windows/Edge یا Chrome | PENDING | اجرای محدود38228191623؛ بعد از نتیجه نهایی ثبت می‌شود |
+| مرورگر Local | BLOCKED | CDN فایل ZIP ناقص؛ executable نصب نشد؛ تست تعامل محلی اجرا نشد، اما CI واقعی Linux/Windows موفق شد |
+| CI Linux/PostgreSQL در636bf70 | PASS | [38230687374](https://github.com/ama3639/smoke-shop/actions/runs/38230687374):۵۸Backend بدونSKIP و۵۶E2E؛Lint/۳Unit/TypeScript/Build موفق |
+| CI Windows/Edge نصب‌شده در636bf70 | PASS / SKIP | همانCI:۵۶E2E،۵۳Backend و۵SKIP مخصوصPostgreSQL؛build/typecheck/lint/۳unit موفق |
 | Acceptance دستگاه مالک | NOT RUN | پس از pull و checklist زیر |
 | Production/Load/Core Web Vitals | NOT RUN | Production Deploy مجاز نیست؛ تست بار/ممیزی جامعWCAG در این کار اجرا نشده |
 
@@ -280,4 +280,24 @@ PR #4 open،merge نهایی و Production Deploy انجام نشده. commit ن
 برای برگشت توسعه، ابتدا سرویس‌ها را متوقف و از وضعیت فعلی backup بگیرید. اجرای reset/clean یا migration معکوس خودکار مجاز نیست؛ نسخه کد و backup سازگار را در محیط جدا بررسی کنید. برگشت به0.9 مالک حساب را پشتیبانی نمی‌کند و نباید روی DB مهاجرت‌یافته بدون تصمیم بازیابی اجرا شود.
 
 
-اصلاح Regression Windows: خواندن سبد خالی بدون کوکی نشست دیگر Cart/Session جدید نمی‌سازد؛ پاسخAPI همان shape قبلی دارد. این تغییر رقابت Set-Cookie هدر با ثبت تأیید۱۸+ را حذف می‌کند. تستbackend اختصاصی این رفتار و امکان افزودن بعد از تأیید را پوشش می‌دهد. شمار فعلیbackend۵۸ است؛۵۷ مربوط به اجراهای قبلی است. اجرای E2E به build/start مطابق راهنمای نصب‌شده Next.js منتقل شد؛ timeout مرور۲۳مسیر پنج دقیقه است و افزایش آن هیچ assertion را حذف نکرده است.
+## اصلاحات Validation
+
+- دریافت سبد خالی مهمان بدون کوکی نشست، Cart/Session جدید نمی‌سازد؛ پاسخ API همان شکل قبلی دارد. این تغییر رقابت Set-Cookie شمارندهٔ هدر با تأیید ۱۸+ را حذف می‌کند. تست اختصاصی کوکی غایب/منقضی و افزودن پس از تأیید را پوشش می‌دهد. شمار فعلی backend برابر ۵۸ است؛ ۵۷ مربوط به اجرای قبل از این اصلاح است.
+- E2E مطابق راهنمای نسخهٔ نصب‌شدهٔ Next.js، روی build/start تولید اجرا می‌شود. زمان بررسی ۲۳ مسیر پنج دقیقه است؛ هیچ assertion حذف نشده است. بازشدن مرورگر حداکثر۳۰ثانیه و آماده‌شدن سرور۱۸۰ثانیه زمان دارد. CI ویندوز بعد از اولین خطای نهایی متوقف می‌شود؛ اجرای موفق همچنان همهٔ۵۶تست را انجام می‌دهد.
+- قبل از اسکرین‌شات کامل، تصاویر قابل‌نمایش در مرورگر آزمون eager می‌شوند، به دید می‌آیند و naturalWidth مثبت و decode با مهلت۵ثانیه تأیید می‌شود. سپس صفحه به بالا برمی‌گردد. انتظار نامحدود برای تصویر lazy خارج از دید وجود ندارد؛ این تنظیم فقط برای ثبت شواهد است و loading تصاویر سایت را تغییر نمی‌دهد. Checkout پس از نمایش ردیف سبد ثبت می‌شود.
+
+## شواهد نهایی تصویری و دامنه
+
+Artifact اجرای [38230687374](https://github.com/ama3639/smoke-shop/actions/runs/38230687374) در Linux شامل۶۰فایل است:۴۶اسکرین‌شات مسیرهای Desktop/Mobile، گالری هر دو اندازه، حساب دارای درخواست و Checkout دارای ردیف. Hero بدون نوشتهٔ تکراری ماکاپ، عکس‌های کامل۱۴مدل، thumbnail جدا و Checkout پس از بارگذاری بررسی شدند. Acceptance مالک هنوز NOT RUN است.
+
+۳۵دارایی باینری قبلی public با SHAهای Git مبنا تطبیق داشتند؛ هیچ تصویر/ویدئوی قبلی تغییر نکرد و هیچ فایل نامرتبط ریموت تغییر نداشت. workspace محلی تاریخچهٔ کپی‌شده دارد و snapshot محلی با delivery SHA ریموت متفاوت است؛ مرجع pull همان برنچ ریموت و commit گزارش‌شده در PR است.
+
+## وضعیت مراحل تحویل
+
+| فاز | وضعیت |
+|---|---|
+|۱–۶| کار قبلی حفظ؛ فقط وضعیت و اصلاح مرتبط نشست/گالری بررسی شد |
+|۷–۸| PASS خودکار در Linux/PostgreSQL و Windows/Edge؛ بررسی بصری انجام شد |
+|۹| مستندات، نسخه و Acceptance تکمیل |
+|۱۰| Commit/Push روی feature branch؛ PR #4 باز و بدون merge/deploy |
+|۱۱| دستورات دقیق و checklist بالا آماده؛ اجرای دستگاه/Acceptance مالک NOT RUN |

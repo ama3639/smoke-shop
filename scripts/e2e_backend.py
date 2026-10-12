@@ -22,10 +22,10 @@ with tempfile.TemporaryDirectory(prefix='smoke-e2e-') as directory:
     category = Category.objects.create(title='آزمون خودکار', slug='e2e', online_enabled=True)
     product = Product.objects.create(title='کیف آزمون خرید', slug='e2e-approved', sku='E2E-ONLY',
                            category=category, description='فقط در دیتابیس موقت آزمون', material='پارچه',
-                           stock=3, price=120000, legal_status='APPROVED_ONLINE', legal_reference='Isolated automated test fixture')
+                           stock=20, price=120000, legal_status='APPROVED_ONLINE', legal_reference='Isolated automated test fixture')
     for slug, title, price in [('e2e-one', 'فروشنده آزمون یک', 120000), ('e2e-two', 'فروشنده آزمون دو', 135000)]:
         vendor = Vendor.objects.create(title=title, slug=slug, active=True, city='محیط آزمون')
-        Offer.objects.create(product=product, vendor=vendor, stock=3, price=price, approved=True)
+        Offer.objects.create(product=product, vendor=vendor, stock=20, price=price, approved=True)
     tobacco = Category.objects.create(title='تنباکوی آزمون', slug='e2e-tobacco')
     for slug, flavor, weight in [('e2e-mint-small', 'نعناع', '50'), ('e2e-mint-large', 'نعناع', '250'), ('e2e-apple', 'سیب', '50')]:
         Product.objects.create(title=slug, slug=slug, sku=slug, category=tobacco, product_type='tobacco',

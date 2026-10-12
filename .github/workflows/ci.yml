@@ -48,6 +48,10 @@ jobs:
         working-directory: frontend
       - run: npm run typecheck
         working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run test:unit
+        working-directory: frontend
       - run: npm run build
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
@@ -59,3 +63,53 @@ jobs:
         with:
           name: browser-test-results
           path: frontend/test-results/
+
+  windows-smoke:
+    runs-on: windows-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: python -m venv backend/.venv
+      - run: backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+      - run: backend/.venv/Scripts/python.exe backend/manage.py check
+      - run: backend/.venv/Scripts/python.exe backend/manage.py makemigrations --check --dry-run
+      - run: backend/.venv/Scripts/python.exe backend/manage.py test shop
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run typecheck
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run test:unit
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - name: Use installed Windows browser without regional CDN download
+        shell: pwsh
+        run: |
+          $smokeBrowsers = @(
+            "${env:ProgramFiles(x86)}/Microsoft/Edge/Application/msedge.exe",
+            "$env:ProgramFiles/Microsoft/Edge/Application/msedge.exe",
+            "$env:ProgramFiles/Google/Chrome/Application/chrome.exe"
+          )
+          $smokeBrowser = $smokeBrowsers | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $smokeBrowser) { throw "No installed Edge/Chrome found for Windows E2E" }
+          "PLAYWRIGHT_CHROMIUM_EXECUTABLE=$smokeBrowser" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Get-Item $smokeBrowser).VersionInfo.ProductVersion
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-test-results-windows
+          path: frontend/test-results/
+

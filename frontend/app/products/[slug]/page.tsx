@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Product, number, serverApi } from "@/lib/api";
-import ProductImage from "@/components/product-image";
+import {
+  Product,
+  ProductPage as ProductList,
+  number,
+  serverApi,
+} from "@/lib/api";
+import ProductGallery from "@/components/product-gallery";
+import ProductCard from "@/components/product-card";
 import Purchase from "@/components/purchase";
 
 export const dynamic = "force-dynamic";
@@ -33,17 +39,25 @@ export default async function ProductPage({
     if (e instanceof Error && e.message === "API 404") notFound();
     throw e;
   }
+  let related: Product[] = [];
+  try {
+    const data = await serverApi<ProductList>(
+      `catalog/products/?${new URLSearchParams({ category: p.category, pagination: "1", page_size: "5" })}`,
+    );
+    related = data.items.filter((item) => item.id !== p.id).slice(0, 4);
+  } catch {
+    /* Keep the detail usable if related items are unavailable. */
+  }
   return (
     <div className="container detail-page">
       <div className="breadcrumb">
-        <Link href="/#catalog">کاتالوگ</Link>
+        <Link href="/catalog">کاتالوگ</Link>
         <span>/</span>
         <span>{p.title}</span>
       </div>
       <div className="detail-grid">
         <div className="detail-image">
-          <ProductImage product={p} />
-          {!p.image && <span>تصویر نمونه نمایشی</span>}
+          <ProductGallery product={p} />
         </div>
         <div className="detail-copy">
           <div className="eyebrow">
@@ -97,31 +111,71 @@ export default async function ProductPage({
                 </div>
               </>
             )}
-            {p.product_type === "tobacco" && <>
-              <div><dt>برند</dt><dd>{p.brand || "ثبت نشده"}</dd></div>
-              <div><dt>طعم</dt><dd>{p.flavor || "ثبت نشده"}</dd></div>
-              <div><dt>وزن خالص</dt><dd>{p.weight_grams === null ? "ثبت نشده" : `${number(Number(p.weight_grams))} گرم`}</dd></div>
-            </>}
+            {p.product_type === "tobacco" && (
+              <>
+                <div>
+                  <dt>برند</dt>
+                  <dd>{p.brand || "ثبت نشده"}</dd>
+                </div>
+                <div>
+                  <dt>طعم</dt>
+                  <dd>{p.flavor || "ثبت نشده"}</dd>
+                </div>
+                <div>
+                  <dt>وزن خالص</dt>
+                  <dd>
+                    {p.weight_grams === null
+                      ? "ثبت نشده"
+                      : `${number(Number(p.weight_grams))} گرم`}
+                  </dd>
+                </div>
+              </>
+            )}
             <div>
               <dt>موجودی</dt>
               <dd>{p.stock > 0 ? "موجود" : "بدون موجودی ثبت‌شده"}</dd>
             </div>
           </dl>
           <Purchase product={p} />
-          {p.offers.length > 0 && <section className="seller-offers" aria-label="عرضه فروشندگان">
-            <h2>فروشندگان این کالا</h2>
-            {p.offers.map(o => <div className="seller-offer" key={o.id}>
-              <div className="seller-offer-top"><strong>{o.vendor}</strong><span>{o.city || "شهر ثبت نشده"}</span></div>
-              <p>{o.retail_available ? "تکی" : ""}{o.retail_available && o.wholesale_available ? " و " : ""}{o.wholesale_available ? "عمده" : ""} · {o.stock > 0 ? "موجودی ثبت‌شده" : "بدون موجودی ثبت‌شده"}</p>
-              {o.phone && <a href={`tel:${o.phone}`} dir="ltr">{o.phone}</a>}
-            </div>)}
-          </section>}
-          {p.source_url && <div className="source-note">
-            <strong>{p.manufacturer}</strong>
-            <p>{p.specification_notes}</p>
-            <a href={p.source_url} target="_blank" rel="noopener noreferrer">منبع اطلاعات</a>
-            {p.source_checked_on && <p>بررسی منبع: {new Date(p.source_checked_on).toLocaleDateString("fa-IR")}</p>}
-          </div>}
+          {p.offers.length > 0 && (
+            <section className="seller-offers" aria-label="عرضه فروشندگان">
+              <h2>فروشندگان این کالا</h2>
+              {p.offers.map((o) => (
+                <div className="seller-offer" key={o.id}>
+                  <div className="seller-offer-top">
+                    <strong>{o.vendor}</strong>
+                    <span>{o.city || "شهر ثبت نشده"}</span>
+                  </div>
+                  <p>
+                    {o.retail_available ? "تکی" : ""}
+                    {o.retail_available && o.wholesale_available ? " و " : ""}
+                    {o.wholesale_available ? "عمده" : ""} ·{" "}
+                    {o.stock > 0 ? "موجودی ثبت‌شده" : "بدون موجودی ثبت‌شده"}
+                  </p>
+                  {o.phone && (
+                    <a href={`tel:${o.phone}`} dir="ltr">
+                      {o.phone}
+                    </a>
+                  )}
+                </div>
+              ))}
+            </section>
+          )}
+          {p.source_url && (
+            <div className="source-note">
+              <strong>{p.manufacturer}</strong>
+              <p>{p.specification_notes}</p>
+              <a href={p.source_url} target="_blank" rel="noopener noreferrer">
+                منبع اطلاعات
+              </a>
+              {p.source_checked_on && (
+                <p>
+                  بررسی منبع:{" "}
+                  {new Date(p.source_checked_on).toLocaleDateString("fa-IR")}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {p.product_type !== "cigarette" && p.product_type !== "tobacco" && (
@@ -155,7 +209,16 @@ export default async function ProductPage({
           )}
         </section>
       )}
+      {related.length > 0 && (
+        <section className="related-section">
+          <h2>مدل‌های مرتبط در همین دسته</h2>
+          <div className="product-grid">
+            {related.map((item, i) => (
+              <ProductCard product={item} index={i + 1} key={item.id} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
-

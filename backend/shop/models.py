@@ -126,6 +126,7 @@ class FeatureFlag(models.Model):
 
 class Cart(models.Model):
     session_key = models.CharField(max_length=40, unique=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='store_carts')
 
 
 class Vendor(models.Model):

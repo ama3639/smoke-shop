@@ -903,7 +903,9 @@ test("operations requires staff and private routes are noindex", async ({
 }) => {
   const response = await page.goto("/manage");
   expect(response?.headers()["x-robots-tag"]).toContain("noindex");
-  await expect(page.getByRole("alert")).toContainText("وارد حساب شوید");
+  await expect(
+    page.locator(".operations-page").getByRole("alert"),
+  ).toContainText("وارد حساب شوید");
   await expect(page.locator(".operations-table")).toHaveCount(0);
   const search = await page.request.get("/search?q=test");
   expect(search.headers()["x-robots-tag"]).toContain("noindex");

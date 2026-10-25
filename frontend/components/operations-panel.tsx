@@ -144,13 +144,14 @@ export default function OperationsPanel() {
           مدیریت پیشرفته
         </a>
       </div>
-      {loading && <p role="status">در حال دریافت اطلاعات…</p>}
+      {(loading || message) && (
+        <p role="status">{loading ? "در حال دریافت اطلاعات…" : message}</p>
+      )}
       {error && (
         <p role="alert" className="operations-error">
           {error}
         </p>
       )}
-      {message && <p role="status">{message}</p>}
       {!loading && !data && (
         <button
           className="button secondary"

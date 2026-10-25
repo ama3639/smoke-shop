@@ -38,6 +38,17 @@ export default function ProductGallery({ product }: { product: Product }) {
             ref={dialog}
             aria-label={`تصویر ${product.title}`}
             onClose={() => setOpened(false)}
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              const controls = event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]');
+              const first = controls[0], last = controls[controls.length - 1];
+              if (!first) return;
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault(); last.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault(); first.focus();
+              }
+            }}
           >
             <button
               className="icon-button"
@@ -49,7 +60,8 @@ export default function ProductGallery({ product }: { product: Product }) {
             </button>
             {opened && (
               <Image
-                width={1122}
+                unoptimized
+              width={1122}
                 height={1402}
                 sizes="90vw"
                 className="gallery-full"

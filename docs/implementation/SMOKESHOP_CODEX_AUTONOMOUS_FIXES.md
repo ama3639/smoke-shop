@@ -109,6 +109,10 @@
 - [x] اصلاح وضعیت PR #4 در مستندات جاری، راهنمای استقرار و پنل؛ فایل گزارش جدا ساخته نشده است.
 - [x] patch امنیتی Next/eslint-config-next به 16.4.3؛ Audit تولید و کامل صفر finding در زمان اجرا؛ CSP پایه و Permissions-Policy، بدون ادعای CSP کامل.
 
-شواهد اعتبارسنجی snapshot: Django check و makemigrations --check --dry-run موفق؛ ۶۶ تست SQLite، ۵ تست PostgreSQL skip؛ typecheck، lint، ۳ unit و build تولید موفق. نصب مرورگر محلی از CDN ناموفق بود؛ E2E محلی موفق اعلام نمی‌شود. نتیجهٔ CI PostgreSQL/Linux/Windows روی commit شاخه از GitHub خوانده و در تحویل گزارش می‌شود؛ صرف وجود تست معادل اجرای موفق نیست.
+شواهد اعتبارسنجی snapshot: Django check و makemigrations --check --dry-run موفق؛ ۶۸ تست SQLite، ۷ تست PostgreSQL skip؛ typecheck، lint، ۳ unit و build تولید موفق. نصب مرورگر محلی از CDN ناموفق بود؛ E2E محلی موفق اعلام نمی‌شود. نتیجهٔ CI PostgreSQL/Linux/Windows روی commit شاخه از GitHub خوانده و در تحویل گزارش می‌شود؛ صرف وجود تست معادل اجرای موفق نیست.
 
 موارد معلق: پاسخ‌های سند مالک، مالیات/کارمزد/تسویه/پرداخت/ارسال، domain و infra/media پایدار، 2FA، مجوز دارایی‌ها، داده‌های SKU و Acceptance نهایی. ثبت محصول و عرضهٔ جدید از Django Admin فعلی انجام می‌شود. Production منتشر یا تأیید نشده است.
+
+در بازبینی هم‌زمانی، قفل کالا پیش از عرضه برای import و لغو رزرو هم‌راستا شد؛ دو آزمون PostgreSQL برای ثبت قیمت هم‌زمان با رزرو و لغو افزوده شد تا موجودی و ledger سازگار بمانند.
+
+CI اولیهٔ e01bc روی Windows پس از ۲۴ E2E موفق، در گردش Tab گالری شکست خورد؛ تمرکز داخل dialog اصلاح شد و تست حفظ شد. upload trace هم به quota حساب برخورد کرد؛ artifact فقط در failure درخواست می‌شود تا اجرای موفق فایل اضافه نسازد. برای Linux ابتدا Chrome/Chromium نصب‌شده استفاده و فقط در نبود مرورگر از CDN نصب می‌شود؛ تست‌ها، retry و timeout تضعیف نشده‌اند.

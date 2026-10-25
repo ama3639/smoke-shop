@@ -82,6 +82,7 @@ def cancel_reservation(order_id, actor='operator-cli', expired=False):
     if expired and (not order.expires_at or order.expires_at > timezone.now()):
         return False
     for item in order.items.order_by('product_id', 'offer_id'):
+        Product.objects.select_for_update().get(pk=item.product_id)
         inventory = Offer.objects.filter(pk=item.offer_id) if item.offer_id else Product.objects.filter(pk=item.product_id)
         inventory.update(stock=F('stock') + item.quantity, updated_at=timezone.now())
         StockLedger.objects.create(product_id=item.product_id, offer_id=item.offer_id,

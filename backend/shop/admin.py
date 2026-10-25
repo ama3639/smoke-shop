@@ -211,6 +211,7 @@ class OfferAdmin(AuditedAdmin):
 
     def save_model(self, request, obj, form, change):
         with transaction.atomic():
+            Product.objects.select_for_update().get(pk=obj.product_id)
             old = Offer.objects.select_for_update().get(pk=obj.pk) if change else None
             if not manages_marketplace(request.user):
                 if not obj.vendor.active or not obj.vendor.members.filter(pk=request.user.pk).exists():

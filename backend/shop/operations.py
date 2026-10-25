@@ -158,7 +158,10 @@ def apply_preview(user, token):
         raise ShopError('FORBIDDEN', 'پیش‌نمایش متعلق به این حساب نیست.', 403)
     changes = data['changes']
     with transaction.atomic():
-        # Lock base rows only: memberships are rechecked separately after locking.
+        # Match reservation lock order; ledger foreign keys also reference products.
+        product_ids = Offer.objects.filter(pk__in=[c['id'] for c in changes]).values('product_id')
+        list(Product.objects.select_for_update().filter(pk__in=product_ids).order_by('pk'))
+        # Memberships are rechecked after locking.
         locked = {o.pk: o for o in Offer.objects.select_for_update().filter(pk__in=[c['id'] for c in changes]).order_by('pk')}
         allowed = set(offers_for(user).filter(pk__in=locked).values_list('pk', flat=True))
         for c in changes:
@@ -218,7 +221,7 @@ def operations(request):
     qs, serialize = section_data(user, section, request.GET.get('q', '')[:100], request.GET.get('state', ''))
     try:
         page = int(request.GET.get('page', '1'))
-        if page < 1:
+        if not 1 <= page <= 2147483647:
             raise ValueError
     except ValueError:
         raise ShopError('INVALID_PAGE', 'شماره صفحه معتبر نیست.')

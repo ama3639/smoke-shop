@@ -402,6 +402,48 @@ class ConcurrentCheckoutTests(TransactionTestCase):
         self.assertEqual(offer.stock, 1)
         self.assertEqual(StockLedger.objects.count(), 2)
 
+    def run_bulk_against(self, cancel=False):
+        from .operations import apply_preview, preview
+        from .services import cancel_reservation
+        offer = self.prepare_offer()
+        user = User.objects.create_superuser('bulk-concurrency', password='test-only')
+        order = checkout(self.carts[0], uuid.uuid4()) if cancel else None
+        offer.refresh_from_db()
+        token = preview(user, [{'offer_id': str(offer.pk), 'product_sku': self.product.sku,
+            'vendor_slug': offer.vendor.slug, 'price': '170', 'stock': '3',
+            'updated_at': offer.updated_at.isoformat()}])['token']
+        barrier = Barrier(2)
+        def run(index):
+            try:
+                barrier.wait(timeout=10)
+                try:
+                    if index == 0:
+                        apply_preview(User.objects.get(pk=user.pk), token)
+                        return 'UPDATED'
+                    if cancel:
+                        cancel_reservation(order.pk)
+                    else:
+                        checkout(Cart.objects.get(pk=self.carts[0].pk), uuid.uuid4())
+                    return 'ORDER_OK'
+                except ShopError as error:
+                    return error.code
+            finally:
+                connections['default'].close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(run, range(2)))
+        self.assertEqual(results[1], 'ORDER_OK')
+        self.assertIn(results[0], ['UPDATED', 'STALE_PREVIEW'])
+        offer.refresh_from_db()
+        self.assertEqual(offer.stock, 1 + sum(StockLedger.objects.values_list('delta', flat=True)))
+        self.assertEqual(Order.objects.count(), 1)
+
+    def test_price_import_and_reservation_preserve_inventory(self):
+        self.run_bulk_against()
+
+    def test_price_import_and_cancellation_preserve_inventory(self):
+        self.run_bulk_against(cancel=True)
+
+
 class MarketplaceTests(TestCase):
     def setUp(self):
         from .models import Offer, Vendor

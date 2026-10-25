@@ -1838,3 +1838,21 @@ main {
   gap: 8px;
   margin-bottom: 16px;
 }
+
+/* Operations shares the storefront typography and silver surfaces. */
+.operations-page { padding-block: 3rem; }
+.operations-page p { line-height: 1.9; }
+.operations-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin-block:1.5rem; }
+.operations-toolbar label, .operations-editor label { display:grid; gap:.5rem; }
+.operations-page input, .operations-page select { background:var(--panel, #17191c); color:inherit; border:1px solid #777; border-radius:.5rem; padding:.75rem; max-width:100%; }
+.operations-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1rem; margin-block:2rem; }
+.operations-stats > div { border:1px solid #777; border-radius:1rem; padding:1rem; display:grid; gap:.75rem; }
+.operations-stats strong { font-size:1.8rem; }
+.operations-table { overflow-x:auto; max-width:100%; margin-block:1rem; }
+.operations-table table { width:100%; border-collapse:collapse; text-align:right; }
+.operations-table th, .operations-table td { padding:.8rem; border-bottom:1px solid #777; min-width:100px; overflow-wrap:anywhere; }
+.operations-table caption { text-align:right; padding-block:1rem; }
+.operations-editor { display:grid; gap:1rem; margin-block:2rem; max-width:none; }
+.operations-error { color:#ffb4b4; }
+.operations-page [aria-current="page"] { outline:2px solid currentColor; outline-offset:3px; }
+.operations-page :focus-visible { outline:2px solid #eee; outline-offset:4px; }

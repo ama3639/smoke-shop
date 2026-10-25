@@ -80,6 +80,7 @@ export function Footer() {
           <Link href="/catalog">
             همه کالاها <ArrowUpLeft size={15} />
           </Link>
+          <Link href="/manage">پنل فروشندگان و مدیریت</Link>
           <Link href="/sellers">
             فروشندگان <ArrowUpLeft size={15} />
           </Link>

@@ -1,7 +1,9 @@
 from django.urls import path
 from . import views
+from .operations import operations
 
 urlpatterns = [
+    path('operations/', operations),
     path('account/', views.account),
     path('vendors/', views.vendors),
     path('health/', views.health), path('session/', views.session), path('catalog/', views.catalog), path('branches/', views.branches),

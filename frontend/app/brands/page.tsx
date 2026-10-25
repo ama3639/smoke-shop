@@ -1,8 +1,8 @@
+import { pageMetadata } from "@/lib/seo";
+export const metadata = pageMetadata("برندهای کاتالوگ", "برندهای کالاهای ثبت‌شده و دسترسی به مشخصات هر مدل.", "/brands");
 import Link from "next/link";
-import type { Metadata } from "next";
 import { readCatalog } from "@/lib/catalog-data";
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "برندهای کاتالوگ" };
 export default async function Brands() {
   const { catalog, unavailable } = await readCatalog({});
   return (

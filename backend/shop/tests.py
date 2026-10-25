@@ -1,7 +1,7 @@
 import io
 import uuid
 from datetime import date
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import Client, TestCase
@@ -730,3 +730,124 @@ class TobaccoFacetTests(TestCase):
         p.flavor = 'کرمی'; p.save()
         data = self.client.get('/api/v1/catalog/products/', {'q': 'كرمي'}).json()['data']
         self.assertEqual([p['slug'] for p in data], ['apple'])
+
+
+class OperationsTests(TestCase):
+    def setUp(self):
+        from .models import Offer, Vendor
+        call_command('seed_roles', verbosity=0)
+        self.user = User.objects.create_user('operations-seller', is_staff=True)
+        self.user.groups.add(Group.objects.get(name='Seller'))
+        category = Category.objects.create(title='آزمون', slug='operations')
+        self.product = Product.objects.create(title='کیف', sku='=SKU', slug='operations-case', category=category)
+        self.vendor = Vendor.objects.create(title='فروشنده', slug='operations-vendor', active=True)
+        self.vendor.members.add(self.user)
+        self.other_vendor = Vendor.objects.create(title='دیگر', slug='other-vendor', active=True)
+        self.offer = Offer.objects.create(product=self.product, vendor=self.vendor, price=100, stock=4, approved=False)
+        self.other = Offer.objects.create(product=self.product, vendor=self.other_vendor, price=200, stock=8)
+        self.client.force_login(self.user)
+
+    def post(self, payload, client=None):
+        return (client or self.client).post('/api/v1/operations/', payload, content_type='application/json')
+
+    def row(self, offer=None, **changes):
+        o = offer or self.offer
+        row = {'offer_id': str(o.pk), 'product_sku': o.product.sku, 'vendor_slug': o.vendor.slug,
+               'price': '150', 'stock': '6', 'updated_at': o.updated_at.isoformat()}
+        return {**row, **changes}
+
+    def token(self, rows=None):
+        from .operations import preview
+        return preview(self.user, rows or [self.row()])['token']
+
+    def test_scoped_dashboard_and_privilege_boundary(self):
+        data = self.client.get('/api/v1/operations/').json()['data']
+        self.assertEqual([r['id'] for r in data['rows']], [self.offer.pk])
+        self.assertEqual(data['stats']['عرضه و موجودی'], 1)
+        self.assertIn('no-store', self.client.get('/api/v1/operations/')['Cache-Control'])
+        for section in ['products', 'vendors', 'orders', 'audit']:
+            self.assertEqual(self.client.get('/api/v1/operations/', {'section': section}).status_code, 403)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'page': '-1'}).status_code, 400)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'q': 'no-match'}).json()['data']['rows'], [])
+
+    def test_preview_does_not_write_and_confirm_keeps_approval(self):
+        response = self.post({'action': 'edit', 'row': self.row()})
+        self.assertEqual(response.status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual((self.offer.price, self.offer.stock), (100, 4))
+        token = response.json()['data']['token']
+        self.assertTrue(token)
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual((self.offer.price, self.offer.stock, self.offer.approved), (150, 6, False))
+        self.assertEqual(StockLedger.objects.get().delta, 2)
+        self.assertEqual(AuditLog.objects.get().actor, self.user.username)
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 409)
+        self.assertEqual(StockLedger.objects.count(), 1)
+
+    def test_stale_offer_rejects_entire_batch(self):
+        from .models import Offer
+        second_product = Product.objects.create(title='دوم', sku='SECOND', slug='second', category=self.product.category)
+        second = Offer.objects.create(product=second_product, vendor=self.vendor, price=10, stock=2)
+        token = self.token([self.row(), self.row(second)])
+        second.stock = 1
+        second.save()
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 409)
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.price, 100)
+        self.assertFalse(AuditLog.objects.exists())
+
+    def test_invalid_rows_and_cross_vendor_cannot_be_confirmed(self):
+        from .operations import preview
+        for changes in [{'price': '-1'}, {'stock': '1.5'}, {'price': '9007199254740992'}, {'product_sku': 'WRONG'}, {'vendor_slug': 'other-vendor'}, {'updated_at': 'old'}, {'offer_id': '9' * 5000}]:
+            result = preview(self.user, [self.row(**changes)])
+            self.assertIsNone(result['token'])
+            self.assertTrue(result['errors'])
+        for rows in [[self.row(self.other)], [self.row(), self.row()], [None]]:
+            self.assertIsNone(preview(self.user, rows)['token'])
+        self.assertEqual(self.post({'action': 'preview', 'csv': 'bad,header\n1,2'}).status_code, 400)
+        self.assertEqual(self.post({'action': 'confirm', 'token': 'tampered'}).status_code, 400)
+        self.assertFalse(AuditLog.objects.exists())
+
+    def test_export_roundtrip_and_spreadsheet_safety(self):
+        import csv
+        response = self.client.get('/api/v1/operations/?export=csv')
+        text = response.content.decode('utf-8-sig')
+        rows = list(csv.DictReader(io.StringIO(text)))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['product_sku'], "'=SKU")
+        preview = self.post({'action': 'preview', 'csv': text}).json()['data']
+        self.assertEqual(preview['errors'], [])
+        self.assertTrue(preview['token'])
+
+    def test_membership_and_permissions_rechecked(self):
+        token = self.token()
+        self.vendor.members.remove(self.user)
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 409)
+        self.vendor.members.add(self.user)
+        self.user.groups.clear()
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 403)
+
+    def test_authentication_token_binding_and_csrf(self):
+        guest = Client()
+        self.assertEqual(guest.get('/api/v1/operations/').status_code, 401)
+        customer = User.objects.create_user('ordinary')
+        guest.force_login(customer)
+        self.assertEqual(guest.get('/api/v1/operations/').status_code, 403)
+        csrf = Client(enforce_csrf_checks=True)
+        csrf.force_login(self.user)
+        self.assertEqual(self.post({'action': 'confirm', 'token': self.token()}, client=csrf).status_code, 403)
+        other_staff = User.objects.create_superuser('other-admin', password='test-only-password')
+        guest.force_login(other_staff)
+        self.assertEqual(self.post({'action': 'confirm', 'token': self.token()}, client=guest).status_code, 403)
+
+    def test_manager_can_view_all_and_operator_cannot_edit_offers(self):
+        from django.contrib.auth.models import Group
+        admin = User.objects.create_superuser('central-admin', password='test-only-password')
+        self.client.force_login(admin)
+        data = self.client.get('/api/v1/operations/').json()['data']
+        self.assertEqual(data['total'], 2)
+        self.user.groups.set([Group.objects.get(name='Order operator')])
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/api/v1/operations/?section=offers').status_code, 403)
+        self.assertEqual(self.post({'action': 'edit', 'row': self.row()}).status_code, 403)

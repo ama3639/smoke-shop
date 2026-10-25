@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,9 +21,9 @@ export async function generateMetadata({
   const { slug } = await params;
   try {
     const p = await serverApi<Product>(`catalog/products/${slug}/`);
-    return { title: p.title, description: p.description };
+    return pageMetadata(p.title, p.description, `/products/${encodeURIComponent(p.slug)}`, p.image);
   } catch {
-    return { title: "مشخصات کالا" };
+    return { title: "مشخصات کالا", robots: { index: false, follow: false } };
   }
 }
 

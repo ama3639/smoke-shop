@@ -1,3 +1,5 @@
+import { pageMetadata } from "@/lib/seo";
+export const metadata = pageMetadata("فروشندگان", "اطلاعات تماس و معرفی فروشندگان فعال و ثبت‌شده.", "/sellers");
 import Link from "next/link";
 import { serverApi, Vendor } from "@/lib/api";
 

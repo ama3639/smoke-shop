@@ -1,3 +1,8 @@
+import { pageMetadata } from "@/lib/seo";
+export async function generateMetadata({ params }: { params: Promise<{ brand: string }> }) {
+  const { brand } = await params;
+  return pageMetadata(`کاتالوگ ${brand}`, `مشخصات و مدل‌های ثبت‌شدهٔ برند ${brand}.`, `/brands/${encodeURIComponent(brand)}`);
+}
 import { notFound } from "next/navigation";
 import Storefront from "@/components/storefront";
 import { readCatalog } from "@/lib/catalog-data";

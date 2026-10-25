@@ -1,27 +1,33 @@
 "use client";
-import { useRef } from "react";
+import Image from "next/image";
+import { useRef, useState } from "react";
 import { X, ZoomIn } from "lucide-react";
 import type { Product } from "@/lib/api";
 import ProductImage from "./product-image";
 import FavoriteButton from "./favorite-button";
 export default function ProductGallery({ product }: { product: Product }) {
+  const [opened, setOpened] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   return (
     <>
       <div className="gallery-main" style={{ position: "relative" }}>
         <FavoriteButton slug={product.slug} title={product.title} />
-        <ProductImage product={product} />
+        <ProductImage product={product} eager />
       </div>
       {product.image ? (
         <>
           <button
             className="gallery-button"
-            onClick={() => dialog.current?.showModal()}
+            onClick={() => {
+              setOpened(true);
+              dialog.current?.showModal();
+            }}
             aria-label="بزرگ‌نمایی تصویر کالا"
           >
-            <img
+            <Image
               src={product.image}
-              alt="نمای ثبت‌شده کالا"
+              alt="بزرگ‌نمایی همان تصویر ثبت‌شده"
+              sizes="80px"
               width={80}
               height={75}
             />
@@ -31,12 +37,7 @@ export default function ProductGallery({ product }: { product: Product }) {
             className="gallery-dialog"
             ref={dialog}
             aria-label={`تصویر ${product.title}`}
-            onKeyDown={(event) => {
-              if (event.key === "Tab") {
-                event.preventDefault();
-                dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
-              }
-            }}
+            onClose={() => setOpened(false)}
           >
             <button
               className="icon-button"
@@ -46,11 +47,16 @@ export default function ProductGallery({ product }: { product: Product }) {
             >
               <X size={20} />
             </button>
-            <img
-              className="gallery-full"
-              src={product.image}
-              alt={product.title}
-            />
+            {opened && (
+              <Image
+                width={1122}
+                height={1402}
+                sizes="90vw"
+                className="gallery-full"
+                src={product.image}
+                alt={product.title}
+              />
+            )}
           </dialog>
         </>
       ) : (

@@ -1,31 +1,40 @@
+import Image from "next/image";
 import { Product } from "@/lib/api";
 import { ProductArt } from "./product-art";
 import { PackBox } from "./pack-3d";
 
-export default function ProductImage({ product }: { product: Product }) {
+export default function ProductImage({
+  product,
+  eager = false,
+}: {
+  product: Product;
+  eager?: boolean;
+}) {
   if (product.image && product.product_type === "cigarette") {
     return (
       <div className="photographed-pack">
-        <img
+        <Image
           className="product-pack-photo"
           src={product.image}
           alt={product.title}
-          width="1122"
-          height="1402"
-          loading="lazy"
+          width={1122}
+          height={1402}
+          loading={eager ? "eager" : "lazy"}
+          sizes="(max-width: 680px) 90vw, (max-width: 1000px) 45vw, 36vw"
           decoding="async"
         />
       </div>
     );
   }
   return product.image ? (
-    <img
+    <Image
       className="real-product-image"
       src={product.image}
       alt={product.title}
-      loading="lazy"
-      width="640"
-      height="500"
+      loading={eager ? "eager" : "lazy"}
+      sizes="(max-width: 680px) 90vw, (max-width: 1000px) 45vw, 36vw"
+      width={640}
+      height={500}
     />
   ) : product.product_type === "cigarette" ? (
     <div className="catalog-pack-art" aria-hidden="true">

@@ -23,10 +23,13 @@ test("all fourteen seller photos load as full-frame product images", async ({
     await photo.scrollIntoViewIfNeeded();
     await expect
       .poll(() => photo.evaluate((el) => (el as HTMLImageElement).naturalWidth))
-      .toBe(1122);
-    expect(
-      await photo.evaluate((el) => (el as HTMLImageElement).naturalHeight),
-    ).toBe(1402);
+      .toBeGreaterThan(0);
+    const dimensions = await photo.evaluate((el) => ({
+      width: (el as HTMLImageElement).naturalWidth,
+      height: (el as HTMLImageElement).naturalHeight,
+    }));
+    expect(dimensions.height / dimensions.width).toBeCloseTo(1402 / 1122, 2);
+    await expect(photo).toHaveAttribute("srcset", /w/);
     expect(await photo.evaluate((el) => getComputedStyle(el).objectFit)).toBe(
       "contain",
     );
@@ -50,7 +53,9 @@ test("all fourteen seller photos load as full-frame product images", async ({
 test("RTL, local font, catalog and normalized search", async ({ page }) => {
   await page.goto("/catalog?type=cigarette");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("انتخاب‌ها");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "انتخاب‌ها",
+  );
   await expect(page.locator(".product-card")).toHaveCount(14);
   await page.getByRole("textbox", { name: "جست‌وجوی کالا" }).fill("كامپكت");
   await expect(page.locator(".product-card")).toHaveCount(2);
@@ -291,7 +296,7 @@ test("product photos stay intact on hover and open details with one click or tap
   await card.scrollIntoViewIfNeeded();
   await expect(card.locator(".product-pack-photo")).toHaveAttribute(
     "src",
-    "/images/products/winston/optimized/12.webp",
+    /(?:%2F|\/)images(?:%2F|\/)products(?:%2F|\/)winston(?:%2F|\/)optimized(?:%2F|\/)12\.webp/,
   );
   if (!isMobile) await card.hover();
   await expect(
@@ -764,7 +769,10 @@ test("guest cart survives registration, checkout and later login; other sessions
   await page.getByRole("link", { name: "ادامه و بررسی درخواست" }).click();
   await expect(page).toHaveURL(/\/checkout$/);
   await expect(page.locator(".cart-row")).toHaveCount(1);
-  await page.screenshot({ path: test.info().outputPath("checkout-populated.png"), fullPage: true });
+  await page.screenshot({
+    path: test.info().outputPath("checkout-populated.png"),
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "ثبت درخواست سفارش" }).click();
   const track = page.getByRole("link", { name: "مشاهده وضعیت سفارش" });
   await expect(track).toBeVisible();
@@ -780,7 +788,9 @@ test("guest cart survives registration, checkout and later login; other sessions
   await page.getByRole("button", { name: "خروج از حساب" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto(orderPath);
-  await expect(page.locator("main").getByRole("alert")).toContainText("پیدا نشد");
+  await expect(page.locator("main").getByRole("alert")).toContainText(
+    "پیدا نشد",
+  );
   await page.goto("/login");
   await page.getByLabel("نام کاربری", { exact: true }).fill(username);
   await page.getByLabel("رمز عبور", { exact: true }).fill(password);
@@ -788,7 +798,10 @@ test("guest cart survives registration, checkout and later login; other sessions
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("نام تازه");
   await expect(page.locator(".account-order")).toHaveCount(1);
-  await page.screenshot({ path: test.info().outputPath("account-populated.png"), fullPage: true });
+  await page.screenshot({
+    path: test.info().outputPath("account-populated.png"),
+    fullPage: true,
+  });
   await page.locator(".account-order").click();
   await expect(page.getByText("کیف آزمون خرید", { exact: true })).toBeVisible();
 });
@@ -850,17 +863,31 @@ test("all Titanium routes have shared surfaces, RTL and no overflow at mobile ta
         // visible page's images eager for this full-page artifact and verify them.
         const images = page.locator("img:visible");
         await images.evaluateAll((elements) => {
-          for (const element of elements) (element as HTMLImageElement).loading = "eager";
+          for (const element of elements)
+            (element as HTMLImageElement).loading = "eager";
         });
         for (const image of await images.all()) {
           await image.scrollIntoViewIfNeeded();
-          await expect.poll(() => image.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-          await image.evaluate(el => Promise.race([
-            (el as HTMLImageElement).decode(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Image decode timed out")), 5000)),
-          ]));
+          await expect
+            .poll(() =>
+              image.evaluate((el) => (el as HTMLImageElement).naturalWidth),
+            )
+            .toBeGreaterThan(0);
+          await image.evaluate((el) =>
+            Promise.race([
+              (el as HTMLImageElement).decode(),
+              new Promise((_, reject) =>
+                setTimeout(
+                  () => reject(new Error("Image decode timed out")),
+                  5000,
+                ),
+              ),
+            ]),
+          );
         }
-        await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+        await page.evaluate(() =>
+          window.scrollTo({ top: 0, behavior: "instant" }),
+        );
         await page.screenshot({
           path: test.info().outputPath(`route-${index}.png`),
           fullPage: true,
@@ -869,4 +896,91 @@ test("all Titanium routes have shared surfaces, RTL and no overflow at mobile ta
     }
   }
   expect(errors).toEqual([]);
+});
+
+test("operations requires staff and private routes are noindex", async ({
+  page,
+}) => {
+  const response = await page.goto("/manage");
+  expect(response?.headers()["x-robots-tag"]).toContain("noindex");
+  await expect(page.getByRole("alert")).toContainText("وارد حساب شوید");
+  await expect(page.locator(".operations-table")).toHaveCount(0);
+  const search = await page.request.get("/search?q=test");
+  expect(search.headers()["x-robots-tag"]).toContain("noindex");
+});
+
+test("seller edits only own offer through preview and confirmation", async ({
+  page,
+}) => {
+  const session = await (await page.request.get("/api/v1/session/")).json();
+  const login = await page.request.post("/api/v1/account/", {
+    headers: { "X-CSRFToken": session.data.csrf_token },
+    data: {
+      action: "login",
+      username: "e2e-operator",
+      password: "test-only-operations",
+    },
+  });
+  expect(login.ok()).toBeTruthy();
+  await page.goto("/manage");
+  await expect(
+    page.getByRole("button", { name: "ویرایش قیمت و موجودی" }),
+  ).toHaveCount(1);
+  await expect(page.locator(".operations-table")).not.toContainText(
+    "فروشنده آزمون دو",
+  );
+  await page.getByRole("button", { name: "ویرایش قیمت و موجودی" }).click();
+  const input = page.getByLabel("قیمت به تومان", { exact: true });
+  const original = Number(await input.inputValue());
+  await input.fill(String(original + 1));
+  await page
+    .getByRole("button", { name: "پیش‌نمایش تغییر", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "بازبینی پیش از ثبت" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "تأیید و ثبت تغییرات" }).click();
+  await expect(page.getByRole("status")).toContainText("به‌روزرسانی شد");
+  await page.getByRole("button", { name: "ویرایش قیمت و موجودی" }).click();
+  await page
+    .getByLabel("قیمت به تومان", { exact: true })
+    .fill(String(original));
+  await page
+    .getByRole("button", { name: "پیش‌نمایش تغییر", exact: true })
+    .click();
+  await page.getByRole("button", { name: "تأیید و ثبت تغییرات" }).click();
+  await expect(page.getByRole("status")).toContainText("به‌روزرسانی شد");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
+test("public metadata and sitemap use configured origin without private URLs", async ({
+  page,
+}) => {
+  await page.goto("/products/winston-red");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://smoke.example.test/products/winston-red",
+  );
+  await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute(
+    "content",
+    "fa_IR",
+  );
+  const sitemap = await page.request.get("/sitemap.xml");
+  expect(sitemap.ok()).toBeTruthy();
+  const xml = await sitemap.text();
+  expect(xml).toContain("https://smoke.example.test/products/winston-red");
+  expect(xml).not.toMatch(
+    /<loc>[^<]*\/(account|login|register|cart|checkout|orders|search|manage|admin)(?:\/|<)/,
+  );
+  const robots = await (await page.request.get("/robots.txt")).text();
+  expect(robots).toContain("Sitemap: https://smoke.example.test/sitemap.xml");
+  await page.goto("/catalog?brand=Winston");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    /noindex/,
+  );
 });

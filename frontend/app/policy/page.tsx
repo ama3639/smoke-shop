@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-export const metadata: Metadata = { title: "شرایط عرضه و حریم خصوصی" };
+import { pageMetadata } from "@/lib/seo";
+export const metadata = pageMetadata("شرایط عرضه و حریم خصوصی", "شرایط نسخهٔ فعلی، وضعیت کالاها و نحوهٔ استفاده از فروشگاه.", "/policy");
 export default function Policy() {
   return (
     <article className="container prose-page">

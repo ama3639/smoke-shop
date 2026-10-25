@@ -19,6 +19,7 @@ with tempfile.TemporaryDirectory(prefix='smoke-e2e-') as directory:
     from shop.models import Category, FeatureFlag, Offer, Product, Vendor
     call_command('migrate', interactive=False, verbosity=0)
     call_command('seed_demo', verbosity=0)
+    call_command('seed_roles', verbosity=0)
     category = Category.objects.create(title='آزمون خودکار', slug='e2e', online_enabled=True)
     product = Product.objects.create(title='کیف آزمون خرید', slug='e2e-approved', sku='E2E-ONLY',
                            category=category, description='فقط در دیتابیس موقت آزمون', material='پارچه',
@@ -26,6 +27,10 @@ with tempfile.TemporaryDirectory(prefix='smoke-e2e-') as directory:
     for slug, title, price in [('e2e-one', 'فروشنده آزمون یک', 120000), ('e2e-two', 'فروشنده آزمون دو', 135000)]:
         vendor = Vendor.objects.create(title=title, slug=slug, active=True, city='محیط آزمون')
         Offer.objects.create(product=product, vendor=vendor, stock=20, price=price, approved=True)
+    from django.contrib.auth.models import User, Group
+    operator = User.objects.create_user('e2e-operator', password='test-only-operations', is_staff=True)
+    operator.groups.add(Group.objects.get(name='Seller'))
+    Vendor.objects.get(slug='e2e-one').members.add(operator)
     tobacco = Category.objects.create(title='تنباکوی آزمون', slug='e2e-tobacco')
     for slug, flavor, weight in [('e2e-mint-small', 'نعناع', '50'), ('e2e-mint-large', 'نعناع', '250'), ('e2e-apple', 'سیب', '50')]:
         Product.objects.create(title=slug, slug=slug, sku=slug, category=tobacco, product_type='tobacco',

@@ -2,7 +2,7 @@
 
 نسخه: 0.10.0 · تاریخ: 2026-10-12
 
-برای دریافت بازطراحی آزمایشی این مرحله، به [راهنمای feature/titanium-silver-storefront و تست ویندوز](PREMIUM_STOREFRONT.md) مراجعه کنید؛ نسخهٔ جدید هنوز در main ادغام نشده است. نصب و API همان ساختار قبلی را دارند.
+پایهٔ Titanium Silver با PR #4 در 2026-10-12 به main ادغام شده است. اصلاحات جدید در feature/production-readiness هستند؛ وضعیت اجرا در ../implementation/SMOKESHOP_CODEX_AUTONOMOUS_FIXES.md ثبت می‌شود. انتشار تولید تأیید نشده است.
 
 ## نصب در ویندوز
 
@@ -126,7 +126,7 @@ SQLite برای توسعه تک‌کاربره است. تولید به PostgreSQ
 
 هر کالا می‌تواند عرضه چند فروشنده با قیمت/موجودی مستقل داشته باشد. به محض وجود Offer، موجودی/قیمت مستقیم Product برای عرضه آن کالا کنار گذاشته می‌شود. فروشنده فعال + عرضه فعال/approved شرط نمایش است؛ سیاست کالا همچنان شرط خرید سرور است. تبدیل کالای دارای رزرو مستقیم به Offers را پس از بررسی/لغو رزروهای قبلی انجام دهید. [قرارداد API](../api/CATALOG_API.md) و [منابع داده](../catalog/PRODUCT_DATA.md).
 
-برای این مرحله شاخه توسعه `feature/catalog-marketplace` است؛ main فقط پس از merge PR به نسخه جدید می‌رسد. روی رایانه دیگر ابتدا `git status --short` و `git fetch origin`، سپس دریافت همان شاخه و `git pull --ff-only`؛ تغییرات محلی را بدون بررسی بازنویسی نکنید. برای تغییر جدید، commit روی شاخه خود و `git push -u origin HEAD` انجام دهید. دستورهای اصلی در این راهنما پس از merge برای main هستند.
+شاخهٔ catalog-marketplace مربوط به مرحلهٔ تاریخی است؛ شاخهٔ اصلاحات جاری feature/production-readiness است و main فقط پس از ادغام PR تغییر می‌کند. روی رایانه دیگر ابتدا `git status --short` و `git fetch origin`، سپس دریافت همان شاخه و `git pull --ff-only`؛ تغییرات محلی را بدون بررسی بازنویسی نکنید. برای تغییر جدید، commit روی شاخه خود و `git push -u origin HEAD` انجام دهید. دستورهای اصلی در این راهنما پس از merge برای main هستند.
 
 ## رفع قفل نصب در Windows
 
@@ -142,3 +142,14 @@ SQLite برای توسعه تک‌کاربره است. تولید به PostgreSQ
 ## ارتقای جاری 0.10.0
 
 دستورهای کامل در PREMIUM_STOREFRONT هستند. پس از توقف دو سرویس و backup، dependencies را نصب و migrate0007 اجرا کنید. این مهاجرت مالک nullable سبد می‌افزاید؛ داده قبلی guest باقی می‌ماند. برای نصب موجود setup/seed_demo لازم نیست. E2E همیشه DB موقت مستقل می‌سازد. نصب Edge/Chrome Windows نیاز به دانلود Chromium را رفع می‌کند؛ تست PostgreSQL از DATABASE_URL دیتابیس اختصاصی آزمون استفاده می‌کند.
+
+
+## تنظیمات اصلاحات آمادگی تولید — 2026-10-26
+
+- SITE_URL باید origin نهایی HTTPS بدون مسیر/نام کاربری/query باشد و هنگام build و start تنظیم شود. بدون آن، canonical جعل نمی‌شود، robots کل سایت را برای خزش می‌بندد و sitemap خالی است. انتخاب دامنه در انتظار مالک است. روی staging با دامنهٔ غیرعمومی، دسترسی واقعی هم محدود شود؛ robots کنترل دسترسی نیست.
+- پنل نقش‌محور در /manage است. فرم‌های پیشرفته Django از /admin/ از همان origin پروکسی می‌شوند. در تولید collectstatic انجام و مسیر /static/ روی reverse proxy یا storage منتخب واقعاً سرو شود؛ gunicorn به‌تنهایی سرور فایل نیست. MEDIA_ROOT نیاز به دیسک دائمی/backup یا storage منتخب دارد.
+- در تولید DJANGO_DEBUG=0، DJANGO_SECRET_KEY، PostgreSQL DATABASE_URL، DJANGO_ALLOWED_HOSTS و DJANGO_CSRF_TRUSTED_ORIGINS با دامنهٔ نهایی لازم‌اند. تنظیم SECURE_PROXY_SSL_HEADER فقط پشت پراکسی مورد اعتماد درست است؛ پراکسی باید هدر ورودی کاربر را بازنویسی کند.
+- HTTPS redirect و HSTS باید روی دامنهٔ فرانت هم در reverse proxy برقرار شوند؛ هدر Django به‌تنهایی همهٔ صفحات Next را پوشش نمی‌دهد. کوکی‌های session و CSRF در DEBUG=0 امن‌اند.
+- CSP فعلی base-uri، object-src، form-action و frame-ancestors را محدود می‌کند؛ سیاست nonce برای script/style هنوز اجرا نشده و نباید CSP کامل ادعا شود. فونت، ویدئو و تصاویر فعلی از همان origin هستند و هیچ دامنهٔ خارجی جدیدی اضافه نشده است.
+- فرمان expire_orders در محیط و DB واقعی باید زمان‌بندی شود. ارائه‌دهندهٔ زمان‌بند، رسانه، cache مشترک، 2FA و backup هنوز نیاز به تصمیم عملیاتی دارند. این تغییرات هیچ job یا محیط تولیدی را نصب/منتشر نمی‌کنند.
+- Next/Image اندازه‌های واکنش‌گرا و خروجی AVIF/WebP را برحسب Accept تولید می‌کند؛ پراکسی تصویر باید هدر Accept را منتقل کند. فایل اصلی و رنگ/محتوای بسته حفظ می‌شوند؛ فایل‌سازی جدا برای هر viewport لازم نیست.

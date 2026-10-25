@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
+export const metadata = pageMetadata("شعب حضوری", "نشانی و ساعات فعالیت شعب حضوری ثبت‌شده.", "/branches");
 import { serverApi } from "@/lib/api";
-export const metadata: Metadata = { title: "شعب حضوری" };
 export const dynamic = "force-dynamic";
 type Branch = {
   id: number;

@@ -184,12 +184,12 @@ export default function OperationsPanel() {
   }
   async function saveRecord(form: HTMLFormElement) {
     if (!record) return;
+    const payload = new FormData(form);
     setBusy(true);
     setError("");
     setMessage("");
     try {
       const csrf = await api<{ csrf_token: string }>("session/");
-      const payload = new FormData(form);
       payload.set("action", "save_record");
       payload.set("token", record.token);
       const response = await fetch("/api/v1/operations/", {

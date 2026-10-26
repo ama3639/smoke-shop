@@ -39,6 +39,8 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Test local startup sequencing
+        run: python -m unittest discover -s scripts -p test_dev.py -v
       - run: python -m venv backend/.venv
       - run: backend/.venv/bin/python -m pip install -r backend/requirements.txt
       - run: backend/.venv/bin/python backend/manage.py check
@@ -91,6 +93,8 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Test local startup sequencing
+        run: python -m unittest discover -s scripts -p test_dev.py -v
       - run: python -m venv backend/.venv
       - run: backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
       - run: backend/.venv/Scripts/python.exe backend/manage.py check
@@ -128,4 +132,5 @@ jobs:
         with:
           name: browser-test-results-windows
           path: frontend/test-results/
+
 

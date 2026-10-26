@@ -1,6 +1,12 @@
 """Staff operations using the existing role, offer, audit and stock contracts."""
 import csv
 import io
+import hashlib
+from django import forms
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
+from django.db import IntegrityError
+from django.forms import modelform_factory
 from functools import wraps
 from django.core import signing
 from django.db import transaction
@@ -8,8 +14,8 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
-from .models import AuditLog, Offer, Order, OrderItem, Product, StockLedger, Vendor
-from .services import ShopError
+from .models import AuditLog, Offer, Order, OrderItem, Product, StockLedger, Vendor, Category
+from .services import ShopError, cancel_reservation
 from .views import body, endpoint, ok
 
 COLUMNS = ['offer_id', 'product_sku', 'vendor_slug', 'price', 'stock', 'updated_at']
@@ -89,6 +95,144 @@ def section_data(user, section, query, state):
             'reason': o.reason, 'created_at': o.created_at.isoformat()}
     return AuditLog.objects.filter(Q(entity__icontains=query) | Q(actor__icontains=query)).order_by('-pk'), lambda o: {
         'id': o.pk, 'title': o.entity, 'status': o.action, 'actor': o.actor, 'created_at': o.created_at.isoformat()}
+
+
+
+# Explicit allowlists keep financial/legal policy and account privileges out of daily forms.
+RECORD_FIELDS = {
+    'products': (Product, ['title', 'slug', 'sku', 'category', 'product_type', 'brand',
+        'description', 'material', 'dimensions', 'flavor', 'weight_grams',
+        'sticks_per_pack', 'packs_per_carton', 'manufacturer', 'source_url',
+        'source_checked_on', 'specification_notes', 'image', 'catalog_image',
+        'illustration', 'retail_available', 'wholesale_available', 'active']),
+    'vendors': (Vendor, ['title', 'slug', 'city', 'address', 'phone', 'description', 'active']),
+    'offers': (Offer, ['vendor', 'product', 'seller_sku', 'retail_available',
+        'wholesale_available', 'active']),
+}
+RECORD_SALT = 'shop.operations-record.v1'
+
+
+def record_form(user, section, record_id, data=None, files=None, lock=False):
+    if section not in RECORD_FIELDS:
+        raise ShopError('INVALID_SECTION', 'این بخش فرم ویرایش ندارد.')
+    model, fields = RECORD_FIELDS[section]
+    creating = record_id == 'new'
+    if not permit(user, model._meta.model_name, 'add' if creating else 'change') or (section == 'vendors' and not manager(user)):
+        raise ShopError('FORBIDDEN', 'مجوز ثبت یا تغییر این بخش را ندارید.', 403)
+    instance = None
+    if not creating:
+        if not str(record_id).isascii() or not str(record_id).isdecimal() or len(str(record_id)) > 18:
+            raise ShopError('NOT_FOUND', 'شناسه رکورد معتبر نیست.', 404)
+        qs = offers_for(user) if section == 'offers' else model.objects.all()
+        if lock:
+            # Do not join nullable relations under FOR UPDATE; match checkout lock ordering.
+            if section == 'offers':
+                product_id = qs.filter(pk=record_id).values_list('product_id', flat=True).first()
+                list(Product.objects.select_for_update().filter(pk=product_id))
+                qs = Offer.objects.filter(pk__in=qs.values('pk'))
+            qs = qs.select_for_update()
+        try:
+            instance = qs.get(pk=record_id)
+        except (model.DoesNotExist, ValueError, TypeError):
+            raise ShopError('NOT_FOUND', 'رکورد یافت نشد یا دسترسی ندارید.', 404)
+    fields = list(fields)
+    if section == 'offers' and manager(user):
+        fields.append('approved')
+    if section == 'offers' and creating:
+        fields += ['price', 'stock']
+    form = modelform_factory(model, fields=fields)(data=data, files=files, instance=instance)
+    if section == 'offers' and creating:
+        form.fields['price'].max_value = 9007199254740991
+        form.fields['price'].validators.append(MaxValueValidator(9007199254740991))
+    for key, label in {'slug': 'شناسه مسیر', 'sku': 'شناسه کالا (SKU)', 'category': 'دسته کالا'}.items():
+        if key in form.fields:
+            form.fields[key].label = label
+    if section == 'products':
+        form.fields['category'].queryset = Category.objects.order_by('title')
+    if instance:
+        for name in (['vendor', 'product'] if section == 'offers' else ['slug', 'sku']):
+            if name in form.fields:
+                form.fields[name].disabled = True
+    if section == 'offers' and not manager(user):
+        form.fields['vendor'].queryset = Vendor.objects.filter(members=user, active=True)
+        form.fields['product'].queryset = Product.objects.filter(active=True,
+            legal_status__in=['APPROVED_ONLINE', 'CATALOG_ONLY', 'IN_PERSON_ONLY'])
+        # Existing hidden/unlisted products must remain editable without changing their identity.
+        if instance:
+            form.fields['product'].queryset = Product.objects.filter(pk=instance.product_id)
+    return form
+
+
+def record_version(instance):
+    if not instance or not instance.pk:
+        return 'new'
+    values = [str(getattr(instance, field.attname)) for field in instance._meta.concrete_fields]
+    return hashlib.sha256(repr(values).encode()).hexdigest()
+
+
+def describe_record(user, section, record_id):
+    form = record_form(user, section, record_id)
+    fields = []
+    for name, field in form.fields.items():
+        value = form[name].value()
+        kind = ('file' if isinstance(field, forms.FileField) else
+                'boolean' if isinstance(field, forms.BooleanField) else
+                'select' if hasattr(field, 'choices') else
+                'textarea' if isinstance(field.widget, forms.Textarea) else
+                'number' if isinstance(field, (forms.IntegerField, forms.DecimalField)) else
+                'date' if isinstance(field, forms.DateField) else 'text')
+        options = [[str(k), str(v)] for k, v in field.choices] if hasattr(field, 'choices') else []
+        fields.append({'name': name, 'label': str(field.label or name), 'kind': kind,
+            'required': field.required, 'disabled': field.disabled, 'help': str(field.help_text),
+            'value': bool(value) if kind == 'boolean' else str(value or ''), 'options': options,
+            'max_length': getattr(field, 'max_length', None)})
+    return {'section': section, 'record_id': record_id, 'fields': fields,
+        'token': signing.dumps({'user': user.pk, 'section': section, 'id': record_id,
+            'version': record_version(form.instance)}, salt=RECORD_SALT)}
+
+
+def save_record(user, data, files):
+    try:
+        signed = signing.loads(data.get('token', ''), salt=RECORD_SALT, max_age=1800)
+    except (signing.BadSignature, TypeError):
+        raise ShopError('INVALID_FORM', 'فرم منقضی یا نامعتبر است؛ دوباره باز کنید.')
+    if signed['user'] != user.pk:
+        raise ShopError('FORBIDDEN', 'فرم متعلق به این حساب نیست.', 403)
+    section, rid = signed['section'], signed['id']
+    try:
+        with transaction.atomic():
+            form = record_form(user, section, rid, data=data, files=files, lock=True)
+            if record_version(form.instance) != signed['version']:
+                raise ShopError('STALE_RECORD', 'رکورد تغییر کرده است؛ فرم را دوباره باز کنید.', 409)
+            if not form.is_valid():
+                errors = '؛ '.join(f'{form.fields[k].label if k in form.fields else "فرم"}: {"، ".join(v)}' for k, v in form.errors.items())
+                raise ShopError('INVALID_RECORD', errors)
+            old = {name: str(form[name].initial or '') for name in form.changed_data}
+            if section == 'offers' and rid == 'new':
+                Product.objects.select_for_update().get(pk=form.cleaned_data['product'].pk)
+            obj = form.save()
+            AuditLog.objects.create(actor=user.get_username(), action='OPERATIONS_CREATE' if rid == 'new' else 'OPERATIONS_UPDATE',
+                entity=f'{obj._meta.model_name}:{obj.pk}', changes={name: {'before': old[name],
+                    'after': str(getattr(obj, name))} for name in form.changed_data})
+            if section == 'offers' and rid == 'new' and obj.stock:
+                StockLedger.objects.create(product=obj.product, offer=obj, delta=obj.stock,
+                    reason=f'Offer inventory: {user.get_username()}')
+    except IntegrityError:
+        raise ShopError('RECORD_CONFLICT', 'شناسه یا عرضه تکراری است؛ داده را بازبینی کنید.', 409)
+    return {'id': obj.pk}
+
+
+def order_detail(user, record_id):
+    if not permit(user, 'order'):
+        raise ShopError('FORBIDDEN', 'مجوز مشاهده سفارش ندارید.', 403)
+    try:
+        order = Order.objects.get(pk=record_id)
+    except (Order.DoesNotExist, ValueError, ValidationError):
+        raise ShopError('NOT_FOUND', 'سفارش یافت نشد.', 404)
+    return {'id': str(order.pk), 'status': order.status, 'total': order.total,
+        'created_at': order.created_at, 'expires_at': order.expires_at,
+        'can_cancel': user.has_perm('shop.cancel_order') and order.status == 'PENDING_REVIEW',
+        'items': list(order.items.values('title', 'seller_name', 'quantity', 'unit_price'))}
 
 
 def export_csv(user):
@@ -187,9 +331,16 @@ def apply_preview(user, token):
 def operations(request):
     user = request.user
     if request.method == 'POST':
+        data = request.POST if request.content_type == 'multipart/form-data' else body(request)
+        if data.get('action') == 'save_record':
+            return ok(save_record(user, data, request.FILES))
+        if data.get('action') == 'cancel_order':
+            if not user.has_perm('shop.cancel_order'):
+                raise ShopError('FORBIDDEN', 'مجوز لغو رزرو ندارید.', 403)
+            detail = order_detail(user, data.get('id'))
+            return ok({'cancelled': cancel_reservation(detail['id'], actor=user.get_username())})
         if not permit(user, 'offer', 'change'):
             raise ShopError('FORBIDDEN', 'مجوز تغییر عرضه ندارید.', 403)
-        data = body(request)
         if data.get('action') == 'confirm':
             return ok(apply_preview(user, data.get('token')))
         if data.get('action') == 'preview':
@@ -211,6 +362,9 @@ def operations(request):
         if data.get('action') == 'edit':
             return ok(preview(user, [data.get('row')]))
         raise ShopError('INVALID_ACTION', 'عملیات معتبر نیست.')
+    if 'record' in request.GET:
+        section, rid = request.GET.get('section'), request.GET['record']
+        return ok(order_detail(user, rid) if section == 'orders' else describe_record(user, section, rid))
     if request.GET.get('export') == 'csv':
         return export_csv(user)
     sections = [{'key': key, 'title': title} for key, title, model in SECTIONS
@@ -233,4 +387,9 @@ def operations(request):
     return ok({'sections': sections, 'section': section, 'stats': stats,
         'rows': [serialize(o) for o in qs[(page - 1) * 30:page * 30]],
         'page': page, 'has_next': page * 30 < total, 'total': total,
-        'can_edit_offers': permit(user, 'offer', 'change')})
+        'can_edit_offers': permit(user, 'offer', 'change'),
+        'can_create': section in RECORD_FIELDS and permit(user, dict((k, m) for k, _, m in SECTIONS)[section], 'add')
+            and (section != 'vendors' or manager(user)),
+        'can_change': section in RECORD_FIELDS and permit(user, dict((k, m) for k, _, m in SECTIONS)[section], 'change')
+            and (section != 'vendors' or manager(user))})
+

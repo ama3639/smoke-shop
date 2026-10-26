@@ -986,3 +986,80 @@ test("public metadata and sitemap use configured origin without private URLs", a
     /noindex/,
   );
 });
+
+test("daily product vendor and offer forms work inside operations", async ({
+  page,
+}, info) => {
+  const session = await (await page.request.get("/api/v1/session/")).json();
+  const login = await page.request.post("/api/v1/account/", {
+    headers: { "X-CSRFToken": session.data.csrf_token },
+    data: {
+      action: "login",
+      username: "e2e-manager",
+      password: "test-only-management",
+    },
+  });
+  expect(login.ok()).toBeTruthy();
+  await page.goto("/manage");
+  await page.getByRole("button", { name: "کالا و رسانه", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ثبت مورد جدید", exact: true })
+    .click();
+  const form = page.locator("form.operations-editor");
+  await expect(form.getByRole("heading")).toBeFocused();
+  const key = `daily-${info.project.name}`;
+  await form.locator('[name="title"]').fill(`کالای ${key}`);
+  await form.locator('[name="slug"]').fill(key);
+  await form.locator('[name="sku"]').fill(key);
+  await form
+    .locator('[name="category"]')
+    .selectOption({ label: "آزمون خودکار" });
+  await form
+    .locator('[name="description"]')
+    .fill("دادهٔ واقعی فقط در fixture آزمون");
+  await form.getByRole("button", { name: "ثبت اطلاعات", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("اطلاعات ثبت شد");
+  const search = page.getByLabel("جست‌وجو", { exact: true });
+  await search.fill(key);
+  await page.getByRole("button", { name: "جست‌وجو", exact: true }).click();
+  await expect(page.locator(".operations-table")).toContainText(
+    "REVIEW_REQUIRED",
+  );
+  await page
+    .getByRole("button", { name: "ویرایش اطلاعات", exact: true })
+    .click();
+  await form.locator('[name="brand"]').fill("برند ثبت‌شده");
+  await form.getByRole("button", { name: "ثبت اطلاعات", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("اطلاعات ثبت شد");
+  await search.fill("");
+  await page.getByRole("button", { name: "جست‌وجو", exact: true }).click();
+  await page.getByRole("button", { name: "فروشندگان", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ثبت مورد جدید", exact: true })
+    .click();
+  await form.locator('[name="title"]').fill(`فروشنده ${key}`);
+  await form.locator('[name="slug"]').fill(key);
+  await form.getByRole("button", { name: "ثبت اطلاعات", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("اطلاعات ثبت شد");
+  await page
+    .getByRole("button", { name: "عرضه و موجودی", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "ثبت مورد جدید", exact: true })
+    .click();
+  await form
+    .locator('[name="vendor"]')
+    .selectOption({ label: `فروشنده ${key}` });
+  await form
+    .locator('[name="product"]')
+    .selectOption({ label: `کالای ${key}` });
+  await form.locator('[name="price"]').fill("100");
+  await form.locator('[name="stock"]').fill("2");
+  await form.getByRole("button", { name: "ثبت اطلاعات", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("اطلاعات ثبت شد");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});

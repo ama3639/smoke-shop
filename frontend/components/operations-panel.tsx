@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, mutate, number, money } from "@/lib/api";
 
 type Row = {
@@ -24,6 +24,38 @@ type Dashboard = {
   total: number;
   has_next: boolean;
   can_edit_offers: boolean;
+  can_create: boolean;
+  can_change: boolean;
+};
+type RecordForm = {
+  section: string;
+  record_id: string;
+  token: string;
+  fields: {
+    name: string;
+    label: string;
+    kind: string;
+    required: boolean;
+    disabled: boolean;
+    help: string;
+    value: string | boolean;
+    options: [string, string][];
+    max_length: number | null;
+  }[];
+};
+type OrderDetail = {
+  id: string;
+  status: string;
+  total: number;
+  created_at: string;
+  expires_at: string | null;
+  can_cancel: boolean;
+  items: {
+    title: string;
+    seller_name: string;
+    quantity: number;
+    unit_price: number;
+  }[];
 };
 type Preview = {
   token: string | null;
@@ -63,6 +95,13 @@ function display(key: string, value: unknown) {
   return String(value ?? "—");
 }
 export default function OperationsPanel() {
+  const [record, setRecord] = useState<RecordForm | null>(null);
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [cancelConfirmed, setCancelConfirmed] = useState(false);
+  const editorHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (record || order) editorHeading.current?.focus();
+  }, [record, order]);
   const [data, setData] = useState<Dashboard | null>(null);
   const [section, setSection] = useState("");
   const [query, setQuery] = useState("");
@@ -81,6 +120,8 @@ export default function OperationsPanel() {
     const controller = new AbortController();
     setLoading(true);
     setData(null);
+    setRecord(null);
+    setOrder(null);
     setError("");
     setPreview(null);
     setEdit(null);
@@ -118,6 +159,72 @@ export default function OperationsPanel() {
       } else setPreview(await mutate<Preview>("operations/", payload));
     } catch (e) {
       setError(e instanceof Error ? e.message : "عملیات انجام نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function openRecord(id: string | number) {
+    if (!data) return;
+    setBusy(true);
+    setError("");
+    setRecord(null);
+    setOrder(null);
+    setEdit(null);
+    setPreview(null);
+    setCancelConfirmed(false);
+    try {
+      const path = `operations/?section=${data.section}&record=${encodeURIComponent(id)}`;
+      if (data.section === "orders") setOrder(await api<OrderDetail>(path));
+      else setRecord(await api<RecordForm>(path));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فرم دریافت نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveRecord(form: HTMLFormElement) {
+    if (!record) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const csrf = await api<{ csrf_token: string }>("session/");
+      const payload = new FormData(form);
+      payload.set("action", "save_record");
+      payload.set("token", record.token);
+      const response = await fetch("/api/v1/operations/", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf.csrf_token },
+        body: payload,
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success)
+        throw new Error(result.error?.message || "ثبت انجام نشد.");
+      setMessage("اطلاعات ثبت شد.");
+      setRecord(null);
+      setRevision((r) => r + 1);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "ارتباط برقرار نشد؛ نتیجه را بازبینی کنید.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function cancelOrder() {
+    if (!order || !cancelConfirmed) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      await mutate("operations/", { action: "cancel_order", id: order.id });
+      setOrder(null);
+      setMessage("رزرو لغو شد؛ موجودی آزاد شده است.");
+      setRevision((r) => r + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "لغو انجام نشد.");
     } finally {
       setBusy(false);
     }
@@ -224,6 +331,15 @@ export default function OperationsPanel() {
               جست‌وجو
             </button>
           </form>
+          {data.can_create && (
+            <button
+              className="button primary"
+              disabled={busy}
+              onClick={() => void openRecord("new")}
+            >
+              ثبت مورد جدید
+            </button>
+          )}
           {data.rows.length ? (
             <div
               className="operations-table"
@@ -264,7 +380,18 @@ export default function OperationsPanel() {
                             ویرایش قیمت و موجودی
                           </button>
                         )}
-                        {r.url && <a href={r.url}>مشاهده و مدیریت</a>}
+                        {(data.can_change || data.section === "orders") && (
+                          <button
+                            className="button secondary"
+                            disabled={busy}
+                            onClick={() => void openRecord(r.id)}
+                          >
+                            {data.section === "orders"
+                              ? "جزئیات رزرو"
+                              : "ویرایش اطلاعات"}
+                          </button>
+                        )}
+                        {r.url && <a href={r.url}>مدیریت پیشرفته</a>}
                       </td>
                     </tr>
                   ))}
@@ -407,6 +534,150 @@ export default function OperationsPanel() {
             </div>
           )}
         </>
+      )}
+      {record && (
+        <form
+          className="purchase-box operations-editor"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void saveRecord(e.currentTarget);
+          }}
+        >
+          <h2 ref={editorHeading} tabIndex={-1}>
+            {record.record_id === "new" ? "ثبت اطلاعات جدید" : "ویرایش اطلاعات"}
+          </h2>
+          <p>
+            فقط اطلاعات واقعی و دارای منبع را ثبت کنید. سیاست خرید و قیمت
+            سفارش‌های قبلی تغییر نمی‌کند. قیمت و موجودی عرضهٔ موجود از فرم
+            پیش‌نمایش مدیریت می‌شود.
+          </p>
+          <fieldset disabled={busy} className="operations-fields">
+            {record.fields.map((f) => (
+              <label key={f.name}>
+                {f.label}
+                {f.kind === "boolean" ? (
+                  <input
+                    type="checkbox"
+                    name={f.name}
+                    defaultChecked={Boolean(f.value)}
+                    disabled={f.disabled}
+                  />
+                ) : f.kind === "select" ? (
+                  <select
+                    name={f.name}
+                    defaultValue={String(f.value)}
+                    required={f.required}
+                    disabled={f.disabled}
+                  >
+                    {f.options.map(([v, label]) => (
+                      <option value={v} key={v}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                ) : f.kind === "textarea" ? (
+                  <textarea
+                    name={f.name}
+                    defaultValue={String(f.value)}
+                    required={f.required}
+                    maxLength={f.max_length || undefined}
+                    disabled={f.disabled}
+                  />
+                ) : f.kind === "file" ? (
+                  <>
+                    <input
+                      type="file"
+                      name={f.name}
+                      accept="image/png,image/jpeg,image/webp"
+                    />
+                    {f.value && (
+                      <span>
+                        فایل فعلی: {String(f.value)}؛ انتخاب نکردن فایل، تصویر
+                        فعلی را حفظ می‌کند.
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <input
+                    type={f.kind}
+                    name={f.name}
+                    defaultValue={String(f.value)}
+                    required={f.required}
+                    maxLength={f.max_length || undefined}
+                    disabled={f.disabled}
+                    step={f.name === "weight_grams" ? "0.01" : "1"}
+                  />
+                )}
+                {f.help && <small>{f.help}</small>}
+              </label>
+            ))}
+          </fieldset>
+          <div className="operations-toolbar">
+            <button className="button primary" disabled={busy}>
+              ثبت اطلاعات
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy}
+              onClick={() => setRecord(null)}
+            >
+              بستن فرم
+            </button>
+          </div>
+        </form>
+      )}
+      {order && (
+        <div className="purchase-box operations-editor">
+          <h2 ref={editorHeading} tabIndex={-1}>
+            جزئیات رزرو
+          </h2>
+          <p>
+            {order.id} — {order.status}
+          </p>
+          <p>مبلغ درخواست: {money(order.total)}</p>
+          <p>
+            ثبت: {display("created_at", order.created_at)}؛ انقضا:{" "}
+            {order.expires_at
+              ? display("expires_at", order.expires_at)
+              : "ثبت نشده"}
+          </p>
+          <ul>
+            {order.items.map((item, i) => (
+              <li key={i}>
+                {item.title} — {item.seller_name || "عرضه مستقیم"} —{" "}
+                {number(item.quantity)} عدد × {money(item.unit_price)}
+              </li>
+            ))}
+          </ul>
+          {order.can_cancel && (
+            <>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={cancelConfirmed}
+                  onChange={(e) => setCancelConfirmed(e.target.checked)}
+                  disabled={busy}
+                />
+                لغو این رزرو و آزادسازی موجودی را تأیید می‌کنم.
+              </label>
+              <button
+                className="button primary"
+                disabled={busy || !cancelConfirmed}
+                onClick={() => void cancelOrder()}
+              >
+                لغو رزرو
+              </button>
+            </>
+          )}
+          <button
+            className="button secondary"
+            disabled={busy}
+            onClick={() => setOrder(null)}
+          >
+            بستن جزئیات
+          </button>
+        </div>
       )}
       {preview && (
         <div className="purchase-box operations-editor" aria-live="polite">

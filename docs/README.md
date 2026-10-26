@@ -1,7 +1,7 @@
 # docs/README.md — فهرست و نقشه مستندات
 
-> **نسخه:** 0.10.1
-> **تاریخ:** 2026-10-12
+> **نسخه:** 0.11.0
+> **تاریخ:** 2026-10-26
 > **به‌روزرسانی شود:** با افزودن یا حذف هر سند
 
 ---
@@ -135,3 +135,4 @@ smokeshop/
 - [Design System](design/DESIGN_SYSTEM.md): مرجع ماکاپ، tokens، کامپوننت، RTL، motion و تصاویر.
 - [گزارش و Acceptance / Windows](deployment/PREMIUM_STOREFRONT.md): دستور مستقل، validation و چک‌لیست مالک.
 - متن‌های نسخه‌های قبل درباره پالت روشن/برنچ premium-storefront تاریخی‌اند؛ قرارداد جاری DEC-029 است.
+

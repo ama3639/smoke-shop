@@ -893,3 +893,108 @@ class OperationsTests(TestCase):
         self.client.force_login(self.user)
         self.assertEqual(self.client.get('/api/v1/operations/?section=offers').status_code, 403)
         self.assertEqual(self.post({'action': 'edit', 'row': self.row()}).status_code, 403)
+
+
+class OperationsRecordTests(TestCase):
+    post = OperationsTests.post
+
+    def setUp(self):
+        OperationsTests.setUp(self)
+        self.admin = User.objects.create_superuser('record-manager', password='test-only-password')
+
+    def record(self, section, rid):
+        return self.client.get('/api/v1/operations/', {'section': section, 'record': rid})
+
+    def fields(self, record):
+        return {f['name']: f['value'] for f in record['fields'] if f['kind'] != 'file'}
+
+    def save(self, record, **values):
+        return self.post({'action': 'save_record', 'token': record['token'], **self.fields(record), **values})
+
+    def test_product_form_validation_audit_and_stale_edit(self):
+        self.client.force_login(self.admin)
+        form = self.record('products', self.product.pk).json()['data']
+        self.assertNotIn('legal_status', self.fields(form))
+        self.assertEqual(self.save(form, title='عنوان تازه', description='مشخصات واقعی', legal_status='APPROVED_ONLINE').status_code, 200)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.title, 'عنوان تازه')
+        self.assertEqual(self.product.legal_status, 'REVIEW_REQUIRED')
+        self.assertTrue(AuditLog.objects.filter(action='OPERATIONS_UPDATE', actor=self.admin.username).exists())
+        self.assertEqual(self.save(form, title='کهنه').status_code, 409)
+        new = self.record('products', 'new').json()['data']
+        self.assertEqual(self.save(new, title='جدید', slug='new-record', sku='NEW', description='واقعی', category=self.product.category_id).status_code, 200)
+        self.assertEqual(Product.objects.get(sku='NEW').legal_status, 'REVIEW_REQUIRED')
+        self.assertEqual(self.save(new, title='تکراری', slug='new-record', sku='NEW', category=self.product.category_id).status_code, 400)
+
+    def test_seller_record_scope_and_approval_cannot_be_forged(self):
+        self.assertEqual(self.record('products', self.product.pk).status_code, 403)
+        self.assertEqual(self.record('vendors', self.vendor.pk).status_code, 403)
+        self.assertEqual(self.record('offers', self.other.pk).status_code, 404)
+        form = self.record('offers', self.offer.pk).json()['data']
+        self.assertEqual(self.save(form, seller_sku='LOCAL', approved=True, stock=999, price=999, vendor=self.other_vendor.pk).status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual((self.offer.approved, self.offer.stock, self.offer.price, self.offer.vendor_id), (False, 4, 100, self.vendor.pk))
+        self.vendor.members.remove(self.user)
+        self.assertEqual(self.save(form).status_code, 404)
+
+    def test_create_offer_uses_scope_and_ledger(self):
+        from .models import Offer
+        self.product.legal_status = 'CATALOG_ONLY'
+        self.product.save()
+        second = Product.objects.create(title='دوم', sku='NEW-2', slug='new-2', category=self.product.category, legal_status='CATALOG_ONLY')
+        form = self.record('offers', 'new').json()['data']
+        self.assertEqual(self.save(form, vendor=self.other_vendor.pk, product=second.pk, price=10, stock=3).status_code, 400)
+        self.assertEqual(self.save(form, vendor=self.vendor.pk, product=second.pk, price=10, stock=3, approved=True).status_code, 200)
+        offer = Offer.objects.get(product=second, vendor=self.vendor)
+        self.assertFalse(offer.approved)
+        self.assertEqual(StockLedger.objects.get(offer=offer).delta, 3)
+
+    def test_vendor_stale_data_and_permission_revocation(self):
+        self.client.force_login(self.admin)
+        form = self.record('vendors', self.vendor.pk).json()['data']
+        self.vendor.title = 'عنوان بیرونی'
+        self.vendor.save()
+        self.assertEqual(self.save(form, title='بازنویسی').status_code, 409)
+        self.client.force_login(self.user)
+        self.assertEqual(self.save(form).status_code, 403)
+
+    def test_order_detail_cancel_is_permission_scoped_and_idempotent(self):
+        import uuid
+        from .models import Cart, Order, OrderItem
+        cart = Cart.objects.create(session_key='record-order')
+        order = Order.objects.create(cart=cart, idempotency_key=uuid.uuid4(), total=100)
+        OrderItem.objects.create(order=order, product=self.product, offer=self.offer, title='رزرو', quantity=1, unit_price=100)
+        self.assertEqual(self.record('orders', str(order.pk)).status_code, 403)
+        self.user.groups.set([Group.objects.get(name='Order operator')])
+        self.client.force_login(self.user)
+        detail = self.record('orders', str(order.pk)).json()['data']
+        self.assertEqual(len(detail['items']), 1)
+        self.assertTrue(detail['can_cancel'])
+        for _ in range(2):
+            self.assertEqual(self.post({'action': 'cancel_order', 'id': str(order.pk)}).status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.stock, 5)
+        self.assertEqual(StockLedger.objects.count(), 1)
+        self.assertEqual(self.record('orders', 'invalid').status_code, 404)
+
+    def test_image_form_validates_file_and_preserves_original(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        import tempfile
+        self.client.force_login(self.admin)
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            form = self.record('products', self.product.pk).json()['data']
+            payload = {**self.fields(form), 'description': 'واقعی', 'action': 'save_record', 'token': form['token']}
+            bad = self.client.post('/api/v1/operations/', {**payload, 'image': SimpleUploadedFile('bad.png', b'not-an-image')})
+            self.assertEqual(bad.status_code, 400)
+            from PIL import Image
+            image = io.BytesIO()
+            Image.new('RGB', (8, 8), 'silver').save(image, format='PNG')
+            good = self.client.post('/api/v1/operations/', {**payload, 'image': SimpleUploadedFile('real.png', image.getvalue(), content_type='image/png')})
+            self.assertEqual(good.status_code, 200)
+            self.product.refresh_from_db()
+            old_name = self.product.image.name
+            form = self.record('products', self.product.pk).json()['data']
+            self.assertEqual(self.save(form, title='حفظ تصویر').status_code, 200)
+            self.product.refresh_from_db()
+            self.assertEqual(self.product.image.name, old_name)

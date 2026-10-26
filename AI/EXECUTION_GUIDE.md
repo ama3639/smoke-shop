@@ -1,7 +1,7 @@
 # AI/EXECUTION_GUIDE.md — راهنمای اجرای AI
 
-> **نسخه:** 0.10.1
-> **تاریخ:** 2026-10-12
+> **نسخه:** 0.11.0
+> **تاریخ:** 2026-10-26
 > **به‌روزرسانی شود:** با تغییر فرایند اجرا، دامنه عامل‌ها یا دستور اجرا
 
 ---
@@ -311,3 +311,4 @@ smokeshop/
 ## قرارداد جاری Titanium Silver — 0.10.0
 
 DEC-029 درخواست جاری و جایگزین راهنمای برنچ/پالت/تعداد محصولات مراحل قبلی است. برنچ feature/titanium-silver-storefront از c66a48f؛ PR #2/#3 طبق مجوز مالک ادغام شده‌اند. نسخه نهایی فقط PR #4؛ merge نهایی و Production Deploy بدون Acceptance مالک انجام نشود. Design System: docs/design/DESIGN_SYSTEM.md؛ وضعیت تست/Windows/Acceptance: docs/deployment/PREMIUM_STOREFRONT.md. Hero با دود محلی، شش دسته، حداکثر شش سیگار منتخب؛ همه کالاها در catalog. SKU/قیمت/موجودی/سیاست خرید از داده واقعی، تصاویر دسته صرفاً نمایشی. تست‌های account/CSRF/جداسازی و PostgreSQL، npm lint/test:unit/typecheck/build/test:e2e اجرا شوند. E2E در DB موقت و با مسیر مطلق Python؛ Edge/Chrome Windows برای دانلود مسدود Chromium. فایل frontend/AGENTS.md راهنمای نسخه نصب‌شده Next.js است و حفظ می‌شود. migration0007 افزایشی و nullable؛ backup و migrate نصب موجود، بدون seed مجدد.
+

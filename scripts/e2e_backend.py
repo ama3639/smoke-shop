@@ -31,10 +31,13 @@ with tempfile.TemporaryDirectory(prefix='smoke-e2e-') as directory:
     operator = User.objects.create_user('e2e-operator', password='test-only-operations', is_staff=True)
     operator.groups.add(Group.objects.get(name='Seller'))
     Vendor.objects.get(slug='e2e-one').members.add(operator)
+    manager = User.objects.create_user('e2e-manager', password='test-only-management', is_staff=True)
+    manager.groups.add(Group.objects.get(name='Marketplace manager'), Group.objects.get(name='Catalog editor'))
     tobacco = Category.objects.create(title='تنباکوی آزمون', slug='e2e-tobacco')
     for slug, flavor, weight in [('e2e-mint-small', 'نعناع', '50'), ('e2e-mint-large', 'نعناع', '250'), ('e2e-apple', 'سیب', '50')]:
         Product.objects.create(title=slug, slug=slug, sku=slug, category=tobacco, product_type='tobacco',
             brand='E2E Tobacco', flavor=flavor, weight_grams=weight, description='فقط در دیتابیس موقت آزمون', legal_status='CATALOG_ONLY')
     FeatureFlag.objects.update(is_enabled=True)
     call_command('runserver', '127.0.0.1:8010', use_reloader=False)
+
 

@@ -478,8 +478,9 @@ export default function OperationsPanel() {
                     </label>
                     {data.filters.length > 0 && (
                       <label>
-                        وضعیت
+                        <span id="operations-state-label">وضعیت</span>
                         <select
+                          aria-labelledby="operations-state-label"
                           value={state}
                           onChange={(e) => {
                             setState(e.target.value);

@@ -1887,6 +1887,10 @@ main {
 @media (max-width: 900px) {
   .operations-workspace { grid-template-columns:minmax(0,1fr); }
   .operations-sidebar { position:static; max-height:none; overflow:visible; }
-  .operations-sidebar nav { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:.75rem; }
+  .operations-sidebar { min-width:0; }
+  .operations-sidebar nav { display:flex; overflow-x:auto; gap:.5rem; padding:.25rem; }
+  .operations-nav-group { display:contents; }
+  .operations-nav-group > p { display:none; }
+  .operations-nav-link { width:auto; flex-shrink:0; white-space:nowrap; }
   .operations-nav-group + .operations-nav-group { border-top:0; margin-top:0; padding-top:0; }
 }

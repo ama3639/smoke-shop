@@ -1203,6 +1203,10 @@ class OwnerControlsTests(TestCase):
             legal_status='APPROVED_ONLINE', legal_reference='test approval')
         FeatureFlag.objects.create(key='cart', is_enabled=True)
         payload = {'product_id': p.pk, 'quantity': 2}
+        Product.objects.filter(pk=p.pk).update(price=0)
+        public = self.client.get('/api/v1/catalog/products/case/').json()['data']
+        self.assertTrue(public['supply_requestable'])
+        self.assertFalse(public['purchasable'])
         url = '/api/v1/supply-requests/'
         self.assertEqual(Client().post(url, payload, content_type='application/json').status_code, 401)
         for _ in range(2):

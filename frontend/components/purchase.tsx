@@ -54,6 +54,35 @@ export default function Purchase({ product }: { product: Product }) {
       setBusy(false);
     }
   }
+  if (product.supply_requestable)
+    return (
+      <div className="purchase-box">
+        <h3>درخواست تأمین</h3>
+        <p>
+          بدون موجودی؛ قیمت و امکان تأمین باید توسط پشتیبانی تأیید شود. این
+          درخواست سفارش قطعی نیست و پرداخت یا رزرو موجودی ندارد.
+        </p>
+        <label className="quantity-field">
+          تعداد درخواست
+          <input
+            type="number"
+            min="1"
+            max="20"
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+          />
+        </label>
+        <button
+          className="button secondary"
+          disabled={busy}
+          onClick={() => void requestSupply()}
+        >
+          درخواست تأمین کالای ناموجود
+        </button>
+        <Link href="/account">ورود و پیگیری در حساب من</Link>
+        {message && <p role="status">{message}</p>}
+      </div>
+    );
   if (!product.purchasable)
     return (
       <div className="purchase-box">
@@ -79,19 +108,6 @@ export default function Purchase({ product }: { product: Product }) {
   return (
     <div className="purchase-box">
       <h3>{money(price || 0)}</h3>
-      {product.stock === 0 && (
-        <div className="notice">
-          <p>بدون موجودی؛ درخواست تأمین سفارش قطعی نیست و پرداخت ندارد.</p>
-          <button
-            className="button secondary"
-            disabled={busy}
-            onClick={() => void requestSupply()}
-          >
-            درخواست تأمین کالای ناموجود
-          </button>
-          <Link href="/account">پیگیری در حساب من</Link>
-        </div>
-      )}
       {product.offers.length > 0 && (
         <label className="quantity-field">
           فروشنده
@@ -120,7 +136,7 @@ export default function Purchase({ product }: { product: Product }) {
           aria-label="تعداد"
           type="number"
           min="1"
-          max={product.stock === 0 ? 20 : Math.min(20, stock)}
+          max={Math.min(20, stock)}
           value={quantity}
           onChange={(e) => setQuantity(Number(e.target.value))}
         />

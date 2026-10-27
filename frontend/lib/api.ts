@@ -37,6 +37,7 @@ export type Product = {
   retail_available: boolean;
   wholesale_available: boolean;
   wholesale_min_quantity: number | null;
+  supply_requestable: boolean;
 };
 export type Catalog = {
   categories: { title: string; slug: string }[];

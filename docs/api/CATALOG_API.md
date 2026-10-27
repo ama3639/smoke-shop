@@ -57,3 +57,5 @@ GET cart/ برای مهمان بدون کوکی نشست پاسخ سبد خال�
 - POST multipart /operations/ با action=preview و file از CSV/XLSX قالب عرضهٔ موجود پشتیبانی می‌کند؛ ستون‌های فعلی/توکن confirm حفظ‌اند، PDF در این مسیر پذیرفته نیست.
 - POST /api/v1/supply-requests/ با product_id صحیح و quantity۱..۲۰، فقط حساب فعال و کالای غیردخانی مجاز با موجودی عمومی صفر؛ پاسخ payment_required=false. نه Order می‌سازد و نه موجودی را رزرو می‌کند؛ هر حساب/کالا فقط یک درخواست PENDING دارد. /account/ کلید supply_requests را فقط برای همان مالک برمی‌گرداند.
 - Product.wholesale_min_quantity اختیاری/nullable و مشخصاتی است؛ قرارداد قدیمی price/stock تغییر نکرده است. همهٔ POSTها CSRF دارند.
+
+فیلد supply_requestable از سیاست واقعی سرور و موجودی عمومی محاسبه می‌شود و به قیمت قطعی وابسته نیست؛ purchasable همچنان قیمت معتبر می‌خواهد. رابط از این فیلد برای درخواست تأمین کالای مجاز ناموجود با قیمت نامشخص استفاده می‌کند.

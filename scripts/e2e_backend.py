@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory(prefix='smoke-e2e-') as directory:
             User.objects.create_user(f'supplier-{project}-{retry}', password='Supplier!Safe321')
             User.objects.create_user(f'supply-{project}-{retry}', password='Supply!Safe321')
     Product.objects.create(title='کالای ناموجود آزمون', slug='e2e-out-of-stock', sku='E2E-EMPTY', category=category,
-        description='فقط در دیتابیس موقت آزمون', stock=0, price=100000, active=False,
+        description='فقط در دیتابیس موقت آزمون', stock=0, price=0, active=False,
         legal_status='APPROVED_ONLINE', legal_reference='Isolated automated test fixture')
     tobacco = Category.objects.create(title='تنباکوی آزمون', slug='e2e-tobacco')
     for slug, flavor, weight in [('e2e-mint-small', 'نعناع', '50'), ('e2e-mint-large', 'نعناع', '250'), ('e2e-apple', 'سیب', '50')]:

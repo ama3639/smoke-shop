@@ -14,13 +14,14 @@ class ProductSerializer(serializers.ModelSerializer):
     offers = serializers.SerializerMethodField()
     retail_available = serializers.SerializerMethodField()
     wholesale_available = serializers.SerializerMethodField()
+    supply_requestable = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = ['id', 'title', 'slug', 'sku', 'category', 'category_title', 'description', 'material',
                   'dimensions', 'illustration', 'image', 'price', 'stock', 'legal_status', 'purchasable', 'compatibility', 'updated_at',
                   'product_type', 'brand', 'sticks_per_pack', 'packs_per_carton', 'retail_available', 'wholesale_available', 'wholesale_min_quantity',
-                  'flavor', 'weight_grams', 'manufacturer', 'source_url', 'source_checked_on', 'specification_notes', 'offers']
+                  'flavor', 'weight_grams', 'manufacturer', 'source_url', 'source_checked_on', 'specification_notes', 'offers', 'supply_requestable']
 
     def public_offers(self, obj):
         return [offer for offer in obj.offers.all() if offer.active and offer.approved and offer.vendor.active]
@@ -32,6 +33,9 @@ class ProductSerializer(serializers.ModelSerializer):
         if obj.offers.all():
             return any(can_purchase_offer(o, self.context.get('cart_enabled')) for o in self.public_offers(obj))
         return self.purchase_allowed(obj) and obj.price > 0
+
+    def get_supply_requestable(self, obj):
+        return self.purchase_allowed(obj) and self.get_stock(obj) == 0
 
     def get_image(self, obj):
         return obj.image.url if obj.image else obj.catalog_image or None

@@ -19,7 +19,7 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['id', 'title', 'slug', 'sku', 'category', 'category_title', 'description', 'material',
                   'dimensions', 'illustration', 'image', 'price', 'stock', 'legal_status', 'purchasable', 'compatibility', 'updated_at',
-                  'product_type', 'brand', 'sticks_per_pack', 'packs_per_carton', 'retail_available', 'wholesale_available',
+                  'product_type', 'brand', 'sticks_per_pack', 'packs_per_carton', 'retail_available', 'wholesale_available', 'wholesale_min_quantity',
                   'flavor', 'weight_grams', 'manufacturer', 'source_url', 'source_checked_on', 'specification_notes', 'offers']
 
     def public_offers(self, obj):

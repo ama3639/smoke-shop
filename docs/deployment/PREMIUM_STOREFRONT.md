@@ -339,3 +339,7 @@ Artifact اجرای [38230687374](https://github.com/ama3639/smoke-shop/actions/
 |۹| مستندات، نسخه و Acceptance تکمیل |
 |۱۰| Commit/Push روی feature branch؛ PR #4 ادغام‌شده؛ بدون deploy تأییدشده |
 |۱۱| دستورات دقیق و checklist بالا آماده؛ اجرای دستگاه/Acceptance مالک NOT RUN |
+
+## ادامهٔ 0.12.0 — 2026-10-27
+
+پنل، تأمین‌کنندهٔ خصوصی، تنظیمات/نقش و درخواست تأمین طبق DEC-032 اجرا شده‌اند؛ گزارش دقیق و مرزهای اجرا در PROJECT_CONTEXT و سند مالک است. check/migration-drift، ۸۴ تست SQLite (۷۷ موفق/۷skip PostgreSQL)، شش launcher، سه unit و typecheck/lint/build/audit تولید محلی موفق‌اند؛ مرورگر محلی دانلود نشد. نتیجهٔ CI از آخرین commit خوانده می‌شود. ارتقا backup + migrate0008/0009، بدون seed/وابستگی تازه؛ پذیرش روی ویندوز مالک و انتشار تولید جدا باقی‌اند.

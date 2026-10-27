@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { api, mutate, number, money } from "@/lib/api";
+import { api, mutate, upload, number, money } from "@/lib/api";
+import AccessControls from "./access-controls";
 
 type Row = {
   id: number | string;
@@ -26,6 +27,7 @@ type Dashboard = {
   can_edit_offers: boolean;
   can_create: boolean;
   can_change: boolean;
+  can_manage_access: boolean;
 };
 type RecordForm = {
   section: string;
@@ -86,6 +88,7 @@ const labels: Record<string, string> = {
   reason: "دلیل",
   created_at: "زمان",
   actor: "کاربر",
+  phone: "شماره تماس (تأییدنشده)",
 };
 function display(key: string, value: unknown) {
   if (typeof value === "boolean") return value ? "بله" : "خیر";
@@ -115,6 +118,8 @@ export default function OperationsPanel() {
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<Row | null>(null);
   const [csv, setCsv] = useState("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [showAccess, setShowAccess] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -125,6 +130,7 @@ export default function OperationsPanel() {
     setError("");
     setPreview(null);
     setEdit(null);
+    setImportFile(null);
     const params = new URLSearchParams({
       q: search,
       page: String(page),
@@ -159,6 +165,22 @@ export default function OperationsPanel() {
       } else setPreview(await mutate<Preview>("operations/", payload));
     } catch (e) {
       setError(e instanceof Error ? e.message : "عملیات انجام نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function filePreview() {
+    if (!importFile) return;
+    setBusy(true);
+    setError("");
+    setPreview(null);
+    const form = new FormData();
+    form.set("action", "preview");
+    form.set("file", importFile);
+    try {
+      setPreview(await upload<Preview>("operations/", form));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "فایل خوانده نشد.");
     } finally {
       setBusy(false);
     }
@@ -269,6 +291,15 @@ export default function OperationsPanel() {
       )}
       {data && (
         <>
+          {data.can_manage_access && (
+            <button
+              className="button secondary"
+              onClick={() => setShowAccess((v) => !v)}
+            >
+              {showAccess ? "بستن مدیریت دسترسی" : "مدیریت نقش‌ها و دسترسی‌ها"}
+            </button>
+          )}
+          {data.can_manage_access && showAccess && <AccessControls />}
           <div className="operations-stats">
             {Object.entries(data.stats).map(([title, count]) => (
               <div key={title}>
@@ -391,7 +422,13 @@ export default function OperationsPanel() {
                               : "ویرایش اطلاعات"}
                           </button>
                         )}
-                        {r.url && <a href={r.url}>مدیریت پیشرفته</a>}
+                        {r.url && (
+                          <a href={r.url}>
+                            {data.section === "submissions"
+                              ? "دریافت فایل خصوصی"
+                              : "مدیریت پیشرفته"}
+                          </a>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -499,14 +536,15 @@ export default function OperationsPanel() {
                     می‌شود.
                   </p>
                   <label>
-                    فایل CSV
+                    فایل CSV یا Excel
                     <input
                       type="file"
-                      accept=".csv,text/csv"
+                      accept=".csv,.xlsx"
                       disabled={busy}
                       onChange={async (e) => {
                         setPreview(null);
                         setCsv("");
+                        setImportFile(null);
                         setError("");
                         const file = e.target.files?.[0];
                         if (!file) return;
@@ -515,7 +553,9 @@ export default function OperationsPanel() {
                           return;
                         }
                         try {
-                          setCsv(await file.text());
+                          if (file.name.toLowerCase().endsWith(".xlsx"))
+                            setImportFile(file);
+                          else setCsv(await file.text());
                         } catch {
                           setError("فایل خوانده نشد.");
                         }
@@ -524,8 +564,12 @@ export default function OperationsPanel() {
                   </label>
                   <button
                     className="button primary"
-                    disabled={busy || !csv}
-                    onClick={() => void action({ action: "preview", csv })}
+                    disabled={busy || (!csv && !importFile)}
+                    onClick={() =>
+                      void (importFile
+                        ? filePreview()
+                        : action({ action: "preview", csv }))
+                    }
                   >
                     بررسی و پیش‌نمایش فایل
                   </button>
@@ -605,7 +649,11 @@ export default function OperationsPanel() {
                     required={f.required}
                     maxLength={f.max_length || undefined}
                     disabled={f.disabled}
-                    step={f.name === "weight_grams" ? "0.01" : "1"}
+                    step={
+                      f.name === "weight_grams" || f.name.endsWith("_percent")
+                        ? "0.01"
+                        : "1"
+                    }
                   />
                 )}
                 {f.help && <small>{f.help}</small>}

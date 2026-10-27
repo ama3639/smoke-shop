@@ -33,6 +33,14 @@ with tempfile.TemporaryDirectory(prefix='smoke-e2e-') as directory:
     Vendor.objects.get(slug='e2e-one').members.add(operator)
     manager = User.objects.create_user('e2e-manager', password='test-only-management', is_staff=True)
     manager.groups.add(Group.objects.get(name='Marketplace manager'), Group.objects.get(name='Catalog editor'))
+    User.objects.create_superuser('e2e-owner', password='test-only-owner')
+    for project in ('desktop', 'mobile'):
+        for retry in (0, 1):
+            User.objects.create_user(f'supplier-{project}-{retry}', password='Supplier!Safe321')
+            User.objects.create_user(f'supply-{project}-{retry}', password='Supply!Safe321')
+    Product.objects.create(title='کالای ناموجود آزمون', slug='e2e-out-of-stock', sku='E2E-EMPTY', category=category,
+        description='فقط در دیتابیس موقت آزمون', stock=0, price=100000, active=False,
+        legal_status='APPROVED_ONLINE', legal_reference='Isolated automated test fixture')
     tobacco = Category.objects.create(title='تنباکوی آزمون', slug='e2e-tobacco')
     for slug, flavor, weight in [('e2e-mint-small', 'نعناع', '50'), ('e2e-mint-large', 'نعناع', '250'), ('e2e-apple', 'سیب', '50')]:
         Product.objects.create(title=slug, slug=slug, sku=slug, category=tobacco, product_type='tobacco',

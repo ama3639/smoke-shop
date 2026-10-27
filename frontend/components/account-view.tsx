@@ -8,6 +8,13 @@ type Account = {
   authenticated: boolean;
   user?: { username: string; name: string; email: string };
   orders: { id: string; total: number; status: string; created_at: string }[];
+  supply_requests?: {
+    id: number;
+    product__title: string;
+    quantity: number;
+    status: string;
+    review_note: string;
+  }[];
   pagination?: {
     page: number;
     pages: number;
@@ -96,6 +103,24 @@ export default function AccountView({
           {message}
         </div>
       )}
+      {account?.authenticated &&
+        mode === "account" &&
+        Boolean(account.supply_requests?.length) && (
+          <section className="purchase-box">
+            <h2>درخواست‌های تأمین من (بدون پرداخت)</h2>
+            {account.supply_requests?.map((r) => (
+              <p key={r.id}>
+                {r.product__title} · {r.quantity} ·{" "}
+                {r.status === "PENDING"
+                  ? "در انتظار بررسی"
+                  : r.status === "REVIEWED"
+                    ? "بررسی‌شده"
+                    : "بسته‌شده"}{" "}
+                · {r.review_note}
+              </p>
+            ))}
+          </section>
+        )}
       {!account && !error ? (
         <p role="status">در حال دریافت حساب…</p>
       ) : mode === "account" && !account?.authenticated ? (

@@ -36,7 +36,7 @@ const config: NextConfig = {
       },
       {
         source:
-          "/:section(account|login|register|cart|checkout|orders|search|wishlist|manage)/:path*",
+          "/:section(account|login|register|cart|checkout|orders|search|wishlist|manage|supplier)/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
       {

@@ -1,6 +1,6 @@
 # راه‌اندازی و نگهداری نسخه پایه
 
-نسخه: 0.11.1 · تاریخ: 2026-10-26
+نسخه: 0.12.0 · تاریخ: 2026-10-27
 
 پایهٔ Titanium Silver با PR #4 در 2026-10-12 به main ادغام شده است. اصلاحات جدید در feature/production-readiness هستند؛ وضعیت اجرا در ../implementation/SMOKESHOP_CODEX_AUTONOMOUS_FIXES.md ثبت می‌شود. انتشار تولید تأیید نشده است.
 
@@ -164,3 +164,18 @@ SQLite برای توسعه تک‌کاربره است. تولید به PostgreSQ
 ### رفع راه‌اندازی محلی — 0.11.1
 
 پس از توقف اجرای قبلی با Ctrl+C و pull شاخه، همان فرمان `backend\.venv\Scripts\python.exe scripts\dev.py` را از ریشه اجرا کنید. dependency یا migration جدیدی وجود ندارد؛ setup/seed مجدد لازم نیست. خطاهای ECONNREFUSED پیش از آماده‌شدن backend، طبق لاگ مالک 2026-10-26 با پاسخ‌های 200 بعدی رفع می‌شدند؛ این patch ترتیب شروع را اصلاح می‌کند. هشدار filesystem کند و favicon 404 مستقل از این اصلاح‌اند.
+
+## ارتقای 0.12.0 — از 0.11.1 و commit مستندی 9246bbeb
+
+ابتدا dev.py را با Ctrl+C متوقف کنید؛ از DB موجود با روش مناسب همان DB backup تهیه کنید. برای SQLite پیش‌فرض در حالت توقف می‌توانید db.sqlite3 را در پوشه‌ای خارج مخزن کپی کنید. سپس شاخهٔ feature/production-readiness را با --ff-only دریافت و این فرمان‌ها را مستقل اجرا کنید؛ در صورت خطا ادامه ندهید:
+
+```powershell
+Set-Location 'D:\Smokeshop'
+.\backend\.venv\Scripts\python.exe backend\manage.py migrate
+.\backend\.venv\Scripts\python.exe backend\manage.py check
+.\backend\.venv\Scripts\python.exe scripts\dev.py
+```
+
+0008 جدول تنظیمات/تأمین‌کننده/فایل خصوصی و 0009 حداقل عمدهٔ nullable و درخواست تأمین را اضافه می‌کنند؛ جدول‌های قدیمی حذف یا بازنویسی نمی‌شوند. تنظیمات رزرو اولیه از ORDER_RESERVATION_MINUTES فعلی محیط گرفته و بعد از آن پنل مرجع است. فایل‌های خصوصی از این پس در DB‌اند؛ backup دیتابیس شامل آن‌ها نیز هست. تنظیم زمان‌بند همچنان جداست.
+
+وابستگی‌ها تغییر نکرده‌اند؛ npm ci، نصب Python package تازه یا seed_demo/seed_roles مجدد لازم نیست. superuser همهٔ مجوزهای تازه را دارد؛ به کارکنان فقط مجوزهای موردنیاز را از پنل نقش‌ها بدهید. نام/تماس هدر/فوتر و رزرو جدید به تنظیمات متصل‌اند؛ سایر نرخ‌ها پیش‌نویس‌اند. لوکال فعلاً SQLite؛ VPS/PostgreSQL/SMS/SMTP/backup تولید راه‌اندازی نمی‌شوند.

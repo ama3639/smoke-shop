@@ -1864,3 +1864,5 @@ main {
 .operations-fields textarea { min-height: 6rem; }
 .operations-editor input[type="checkbox"] { width: 1.2rem; height: 1.2rem; }
 .operations-editor h2:focus { outline: 2px solid var(--accent-primary); outline-offset: 4px; }
+.operations-permissions { max-height: 24rem; overflow: auto; display: grid; gap: .6rem; margin-block: 1rem; }
+.operations-permissions label { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }

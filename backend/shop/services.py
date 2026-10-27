@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-from .models import AuditLog, CartItem, FeatureFlag, Offer, Order, OrderItem, Product, StockLedger
+from .models import AuditLog, CartItem, FeatureFlag, Offer, Order, OrderItem, Product, StockLedger, SiteSettings
 
 
 class ShopError(Exception):
@@ -60,8 +60,9 @@ def checkout(cart, key):
                 raise ShopError('OUT_OF_STOCK', 'موجودی کافی نیست؛ سبد را بازبینی کنید.', 409)
             item.product, item.offer = product, offer
             total += (offer.price if offer else product.price) * item.quantity
+        configured_minutes = SiteSettings.objects.filter(pk=1).values_list('reservation_minutes', flat=True).first()
         order = Order.objects.create(cart=cart, idempotency_key=key, total=total,
-                                     expires_at=timezone.now() + timedelta(minutes=settings.ORDER_RESERVATION_MINUTES))
+                                     expires_at=timezone.now() + timedelta(minutes=configured_minutes or settings.ORDER_RESERVATION_MINUTES))
         for item in items:
             OrderItem.objects.create(order=order, product=item.product, offer=item.offer,
                                      seller_name=item.offer.vendor.title if item.offer else '', title=item.product.title,

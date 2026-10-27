@@ -1,4 +1,206 @@
 import { test, expect } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
+
+async function authenticatedPost(
+  request: APIRequestContext,
+  path: string,
+  data: unknown,
+) {
+  const session = await (await request.get("/api/v1/session/")).json();
+  return request.post(path, {
+    headers: { "X-CSRFToken": session.data.csrf_token },
+    data,
+  });
+}
+
+test("private supplier applications lists and admin review stay separate", async ({
+  page,
+  request,
+}, info) => {
+  const name = `supplier-${info.project.name}-${info.retry}`;
+  expect(
+    (
+      await authenticatedPost(page.request, "/api/v1/account/", {
+        action: "login",
+        username: name,
+        password: "Supplier!Safe321",
+        confirm: "Supplier!Safe321",
+        adult: true,
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.goto("/supplier");
+  await page.getByLabel("نام تأمین‌کننده", { exact: true }).fill(name);
+  await page.getByLabel("شماره تماس", { exact: true }).fill("09120000000");
+  await page.getByRole("button", { name: "ارسال برای بررسی ادمین" }).click();
+  await expect(page.getByText("وضعیت:", { exact: false })).toContainText(
+    "در انتظار بررسی",
+  );
+  expect(
+    (
+      await authenticatedPost(request, "/api/v1/account/", {
+        action: "login",
+        username: "e2e-owner",
+        password: "test-only-owner",
+      })
+    ).ok(),
+  ).toBeTruthy();
+  const list = await (
+    await request.get(`/api/v1/operations/?section=suppliers&q=${name}`)
+  ).json();
+  const id = list.data.rows[0].id;
+  const form = await (
+    await request.get(`/api/v1/operations/?section=suppliers&record=${id}`)
+  ).json();
+  expect(
+    (
+      await authenticatedPost(request, "/api/v1/operations/", {
+        action: "save_record",
+        token: form.data.token,
+        title: name,
+        phone: "09120000000",
+        status: "APPROVED",
+        review_note: "تأیید آزمون",
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.reload();
+  await page.getByLabel("فایل لیست", { exact: true }).setInputFiles({
+    name: "supplier.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("product_sku,purchase_price,stock\nE2E-ONLY,100,2\n"),
+  });
+  await page.getByRole("button", { name: "ارسال لیست خصوصی" }).click();
+  await expect(
+    page.getByRole("link", { name: "supplier.csv", exact: true }),
+  ).toBeVisible();
+  const own = await (await page.request.get("/api/v1/supplier/")).json();
+  const fileId = own.data.submissions[0].id;
+  expect(
+    (await page.request.get(`/api/v1/supplier/?download=${fileId}`)).ok(),
+  ).toBeTruthy();
+  expect((await page.request.get("/api/v1/operations/")).status()).toBe(403);
+  const headers = (await page.request.get("/supplier")).headers();
+  expect(headers["x-robots-tag"]).toContain("noindex");
+});
+
+test("senior can edit site settings and assign limited roles inside manage", async ({
+  page,
+}, info) => {
+  expect(
+    (
+      await authenticatedPost(page.request, "/api/v1/account/", {
+        action: "login",
+        username: "e2e-owner",
+        password: "test-only-owner",
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.goto("/manage");
+  await page.getByRole("button", { name: "تنظیمات سایت", exact: true }).click();
+  await page
+    .getByRole("button", { name: "ویرایش اطلاعات", exact: true })
+    .click();
+  const form = page.locator("form.operations-editor");
+  await form.locator('[name="support_phone"]').fill("09120000000");
+  await form.getByRole("button", { name: "ثبت اطلاعات", exact: true }).click();
+  await expect(
+    page.locator(".operations-page").getByRole("status"),
+  ).toContainText("اطلاعات ثبت شد");
+  expect(
+    (await (await page.request.get("/api/v1/site/")).json()).data.support_phone,
+  ).toBe("09120000000");
+  await page
+    .getByRole("button", { name: "مدیریت نقش‌ها و دسترسی‌ها", exact: true })
+    .click();
+  const controls = page
+    .locator("section")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "نقش‌ها و دسترسی‌ها — مدیر ارشد",
+        exact: true,
+      }),
+    })
+    .last();
+  await controls
+    .getByLabel("نام نقش", { exact: true })
+    .fill(`review-${info.project.name}-${info.retry}`);
+  await controls.locator('input[name="permissions"]').first().check();
+  await controls
+    .getByRole("button", { name: "ثبت مجوزهای نقش", exact: true })
+    .click();
+  await expect(controls.getByRole("status")).toContainText("به‌روز شد");
+});
+
+test("out of stock supply request is unpaid and appears only in customer account", async ({
+  page,
+  request,
+}, info) => {
+  const name = `supply-${info.project.name}-${info.retry}`;
+  expect(
+    (
+      await authenticatedPost(page.request, "/api/v1/account/", {
+        action: "login",
+        username: name,
+        password: "Supply!Safe321",
+        confirm: "Supply!Safe321",
+        adult: true,
+      })
+    ).ok(),
+  ).toBeTruthy();
+  expect(
+    (
+      await authenticatedPost(request, "/api/v1/account/", {
+        action: "login",
+        username: "e2e-owner",
+        password: "test-only-owner",
+      })
+    ).ok(),
+  ).toBeTruthy();
+  const listing = await (
+    await request.get("/api/v1/operations/?section=products&q=E2E-EMPTY")
+  ).json();
+  const id = listing.data.rows[0].id;
+  async function visibility(active: boolean) {
+    const form = (
+      await (
+        await request.get(`/api/v1/operations/?section=products&record=${id}`)
+      ).json()
+    ).data;
+    const values = Object.fromEntries(
+      form.fields
+        .filter((f: { kind: string }) => f.kind !== "file")
+        .map((f: { name: string; value: unknown }) => [f.name, f.value]),
+    );
+    expect(
+      (
+        await authenticatedPost(request, "/api/v1/operations/", {
+          ...values,
+          action: "save_record",
+          token: form.token,
+          active,
+        })
+      ).ok(),
+    ).toBeTruthy();
+  }
+  await visibility(true);
+  try {
+    await page.goto("/products/e2e-out-of-stock");
+    await page
+      .getByRole("button", { name: "درخواست تأمین کالای ناموجود", exact: true })
+      .click();
+    await expect(page.getByRole("status")).toContainText("بدون پرداخت");
+    await page.goto("/account");
+    await expect(
+      page.getByRole("heading", { name: "درخواست‌های تأمین من (بدون پرداخت)" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("کالای ناموجود آزمون", { exact: false }),
+    ).toBeVisible();
+  } finally {
+    await visibility(false);
+  }
+});
 
 test.beforeEach(async ({ context }, info) => {
   if (!info.title.includes("age gate")) {

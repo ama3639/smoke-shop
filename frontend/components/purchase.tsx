@@ -40,6 +40,20 @@ export default function Purchase({ product }: { product: Product }) {
       setBusy(false);
     }
   }
+  async function requestSupply() {
+    setBusy(true);
+    setMessage("");
+    try {
+      await mutate("supply-requests/", { product_id: product.id, quantity });
+      setMessage(
+        "درخواست تأمین ثبت شد؛ بدون پرداخت، رزرو موجودی یا تضمین تأمین. پاسخ در حساب من نمایش داده می‌شود.",
+      );
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "درخواست ثبت نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
   if (!product.purchasable)
     return (
       <div className="purchase-box">
@@ -65,6 +79,19 @@ export default function Purchase({ product }: { product: Product }) {
   return (
     <div className="purchase-box">
       <h3>{money(price || 0)}</h3>
+      {product.stock === 0 && (
+        <div className="notice">
+          <p>بدون موجودی؛ درخواست تأمین سفارش قطعی نیست و پرداخت ندارد.</p>
+          <button
+            className="button secondary"
+            disabled={busy}
+            onClick={() => void requestSupply()}
+          >
+            درخواست تأمین کالای ناموجود
+          </button>
+          <Link href="/account">پیگیری در حساب من</Link>
+        </div>
+      )}
       {product.offers.length > 0 && (
         <label className="quantity-field">
           فروشنده
@@ -93,7 +120,7 @@ export default function Purchase({ product }: { product: Product }) {
           aria-label="تعداد"
           type="number"
           min="1"
-          max={Math.min(20, stock)}
+          max={product.stock === 0 ? 20 : Math.min(20, stock)}
           value={quantity}
           onChange={(e) => setQuantity(Number(e.target.value))}
         />

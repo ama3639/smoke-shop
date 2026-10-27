@@ -3,6 +3,8 @@ import csv
 import io
 import hashlib
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator
 from django.db import IntegrityError
@@ -14,7 +16,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
-from .models import AuditLog, Offer, Order, OrderItem, Product, StockLedger, Vendor, Category
+from .models import AuditLog, Offer, Order, OrderItem, Product, StockLedger, Vendor, Category, SiteSettings, SupplierProfile, SupplierSubmission, SupplyRequest
 from .services import ShopError, cancel_reservation
 from .views import body, endpoint, ok
 
@@ -25,6 +27,10 @@ SECTIONS = [
     ('vendors', 'فروشندگان', 'vendor'), ('orders', 'سفارش و رزرو', 'order'),
     ('items', 'ردیف‌های سفارش', 'orderitem'), ('stock', 'دفتر موجودی', 'stockledger'),
     ('audit', 'تاریخچه تغییرات', 'auditlog'),
+    ('settings', 'تنظیمات سایت', 'sitesettings'),
+    ('suppliers', 'درخواست تأمین‌کنندگان', 'supplierprofile'),
+    ('submissions', 'لیست‌های خصوصی', 'suppliersubmission'),
+    ('supply', 'درخواست تأمین', 'supplyrequest'),
 ]
 
 
@@ -56,6 +62,21 @@ def section_data(user, section, query, state):
     model = next((m for key, _, m in SECTIONS if key == section), None)
     if not model or not permit(user, model) or (section == 'vendors' and not manager(user)):
         raise ShopError('FORBIDDEN', 'دسترسی این بخش را ندارید.', 403)
+    if section == 'settings':
+        return SiteSettings.objects.all(), lambda o: {'id': o.pk, 'title': o.display_name,
+            'status': 'نرخ‌ها پیش‌نویس‌اند؛ پرداخت و جریمه فعال نیست', 'updated_at': o.updated_at.isoformat()}
+    if section == 'suppliers':
+        return SupplierProfile.objects.filter(title__icontains=query).order_by('-pk'), lambda o: {
+            'id': o.pk, 'title': o.title, 'status': o.get_status_display(), 'phone': o.phone}
+    if section == 'submissions':
+        return SupplierSubmission.objects.select_related('supplier').defer('content', 'rows').filter(
+            supplier__title__icontains=query).order_by('-pk'), lambda o: {'id': o.pk, 'title': o.filename,
+            'vendor': o.supplier.title, 'status': o.get_status_display(),
+            'url': f'/api/v1/supplier/?download={o.pk}', 'created_at': o.created_at.isoformat()}
+    if section == 'supply':
+        return SupplyRequest.objects.select_related('product').filter(product__title__icontains=query).order_by('-pk'), lambda o: {
+            'id': o.pk, 'title': o.product.title, 'status': o.get_status_display(), 'quantity': o.quantity,
+            'created_at': o.created_at.isoformat()}
     if section == 'offers':
         qs = offers_for(user)
         if query:
@@ -100,11 +121,17 @@ def section_data(user, section, query, state):
 
 # Explicit allowlists keep financial/legal policy and account privileges out of daily forms.
 RECORD_FIELDS = {
+    'settings': (SiteSettings, ['display_name', 'support_phone', 'support_email', 'reservation_minutes',
+        'preparation_minutes', 'urgent_minutes', 'urgent_fee', 'tax_percent',
+        'cancellation_percent', 'cancellation_fixed']),
+    'suppliers': (SupplierProfile, ['title', 'phone', 'status', 'review_note']),
+    'submissions': (SupplierSubmission, ['status', 'review_note']),
+    'supply': (SupplyRequest, ['status', 'review_note']),
     'products': (Product, ['title', 'slug', 'sku', 'category', 'product_type', 'brand',
         'description', 'material', 'dimensions', 'flavor', 'weight_grams',
         'sticks_per_pack', 'packs_per_carton', 'manufacturer', 'source_url',
         'source_checked_on', 'specification_notes', 'image', 'catalog_image',
-        'illustration', 'retail_available', 'wholesale_available', 'active']),
+        'illustration', 'retail_available', 'wholesale_available', 'wholesale_min_quantity', 'active']),
     'vendors': (Vendor, ['title', 'slug', 'city', 'address', 'phone', 'description', 'active']),
     'offers': (Offer, ['vendor', 'product', 'seller_sku', 'retail_available',
         'wholesale_available', 'active']),
@@ -117,6 +144,8 @@ def record_form(user, section, record_id, data=None, files=None, lock=False):
         raise ShopError('INVALID_SECTION', 'این بخش فرم ویرایش ندارد.')
     model, fields = RECORD_FIELDS[section]
     creating = record_id == 'new'
+    if creating and section in ('settings', 'suppliers', 'submissions', 'supply'):
+        raise ShopError('FORBIDDEN', 'این رکورد از مسیر اختصاصی ایجاد می‌شود.', 403)
     if not permit(user, model._meta.model_name, 'add' if creating else 'change') or (section == 'vendors' and not manager(user)):
         raise ShopError('FORBIDDEN', 'مجوز ثبت یا تغییر این بخش را ندارید.', 403)
     instance = None
@@ -184,7 +213,7 @@ def describe_record(user, section, record_id):
         options = [[str(k), str(v)] for k, v in field.choices] if hasattr(field, 'choices') else []
         fields.append({'name': name, 'label': str(field.label or name), 'kind': kind,
             'required': field.required, 'disabled': field.disabled, 'help': str(field.help_text),
-            'value': bool(value) if kind == 'boolean' else str(value or ''), 'options': options,
+            'value': bool(value) if kind == 'boolean' else str('' if value is None else value), 'options': options,
             'max_length': getattr(field, 'max_length', None)})
     return {'section': section, 'record_id': record_id, 'fields': fields,
         'token': signing.dumps({'user': user.pk, 'section': section, 'id': record_id,
@@ -207,7 +236,9 @@ def save_record(user, data, files):
             if not form.is_valid():
                 errors = '؛ '.join(f'{form.fields[k].label if k in form.fields else "فرم"}: {"، ".join(v)}' for k, v in form.errors.items())
                 raise ShopError('INVALID_RECORD', errors)
-            old = {name: str(form[name].initial or '') for name in form.changed_data}
+            old = {name: str('' if form[name].initial is None else form[name].initial) for name in form.changed_data}
+            if section == 'submissions' and not user.has_perm('shop.view_suppliersubmission'):
+                raise ShopError('FORBIDDEN', 'مجوز مشاهده لیست لازم است.', 403)
             if section == 'offers' and rid == 'new':
                 Product.objects.select_for_update().get(pk=form.cleaned_data['product'].pk)
             obj = form.save()
@@ -332,6 +363,8 @@ def operations(request):
     user = request.user
     if request.method == 'POST':
         data = request.POST if request.content_type == 'multipart/form-data' else body(request)
+        if data.get('action') in ('save_access', 'save_role'):
+            return ok(access_settings(user, data))
         if data.get('action') == 'save_record':
             return ok(save_record(user, data, request.FILES))
         if data.get('action') == 'cancel_order':
@@ -344,6 +377,10 @@ def operations(request):
         if data.get('action') == 'confirm':
             return ok(apply_preview(user, data.get('token')))
         if data.get('action') == 'preview':
+            if 'file' in request.FILES:
+                from .tabular import read_table, LIMIT
+                upload = request.FILES['file']
+                return ok(preview(user, read_table(upload.read(LIMIT + 1), upload.name, COLUMNS)))
             text = data.get('csv', '')
             if not isinstance(text, str) or len(text) > 1000000:
                 raise ShopError('INVALID_IMPORT', 'فایل CSV معتبر نیست یا بزرگ‌تر از حد مجاز است.')
@@ -362,6 +399,8 @@ def operations(request):
         if data.get('action') == 'edit':
             return ok(preview(user, [data.get('row')]))
         raise ShopError('INVALID_ACTION', 'عملیات معتبر نیست.')
+    if request.GET.get('access') == '1':
+        return ok(access_settings(user))
     if 'record' in request.GET:
         section, rid = request.GET.get('section'), request.GET['record']
         return ok(order_detail(user, rid) if section == 'orders' else describe_record(user, section, rid))
@@ -388,8 +427,90 @@ def operations(request):
         'rows': [serialize(o) for o in qs[(page - 1) * 30:page * 30]],
         'page': page, 'has_next': page * 30 < total, 'total': total,
         'can_edit_offers': permit(user, 'offer', 'change'),
-        'can_create': section in RECORD_FIELDS and permit(user, dict((k, m) for k, _, m in SECTIONS)[section], 'add')
+        'can_manage_access': user.is_superuser,
+        'can_create': section in RECORD_FIELDS and section not in ('settings', 'suppliers', 'submissions', 'supply') and permit(user, dict((k, m) for k, _, m in SECTIONS)[section], 'add')
             and (section != 'vendors' or manager(user)),
         'can_change': section in RECORD_FIELDS and permit(user, dict((k, m) for k, _, m in SECTIONS)[section], 'change')
             and (section != 'vendors' or manager(user))})
+
+
+def access_version(obj):
+    values = (obj.name, sorted(obj.permissions.values_list('pk', flat=True))) if isinstance(obj, Group) else (
+        obj.is_staff, obj.is_superuser, sorted(obj.groups.values_list('pk', flat=True)),
+        sorted(obj.user_permissions.values_list('pk', flat=True)))
+    return hashlib.sha256(repr(values).encode()).hexdigest()
+
+
+def access_token(user, obj):
+    return signing.dumps({'actor': user.pk, 'model': obj._meta.model_name,
+        'id': obj.pk, 'version': access_version(obj)}, salt='shop.access.v1')
+
+
+def check_access_token(user, obj, token):
+    try:
+        value = signing.loads(token or '', salt='shop.access.v1', max_age=600)
+    except (signing.BadSignature, TypeError):
+        raise ShopError('INVALID_FORM', 'فرم دسترسی منقضی یا نامعتبر است.')
+    if value != {'actor': user.pk, 'model': obj._meta.model_name, 'id': obj.pk, 'version': access_version(obj)}:
+        raise ShopError('STALE_RECORD', 'دسترسی تغییر کرده؛ فرم را دوباره دریافت کنید.', 409)
+
+
+def access_settings(user, data=None):
+    if not user.is_superuser:
+        raise ShopError('FORBIDDEN', 'فقط مدیر ارشد مجاز به تغییر نقش‌ها و دسترسی‌هاست.', 403)
+    permissions = Permission.objects.filter(content_type__app_label='shop').order_by('codename')
+    if data:
+        with transaction.atomic():
+            if data['action'] == 'save_role':
+                name, ids = data.get('name'), data.get('permissions')
+                if not isinstance(name, str) or not name.strip() or len(name) > 150 or not isinstance(ids, list) or len(ids) > 200:
+                    raise ShopError('INVALID_ROLE', 'نام نقش و مجوزها معتبر نیستند.')
+                if any(type(i) is not int for i in ids) or set(ids) - set(permissions.values_list('pk', flat=True)):
+                    raise ShopError('INVALID_ROLE', 'فقط مجوزهای همین برنامه قابل تخصیص‌اند.')
+                if data.get('role_id') is None:
+                    group, created = Group.objects.get_or_create(name=name.strip())
+                    if not created:
+                        raise ShopError('RECORD_CONFLICT', 'نام نقش تکراری است؛ نقش موجود را انتخاب کنید.', 409)
+                else:
+                    if type(data['role_id']) is not int:
+                        raise ShopError('INVALID_ROLE', 'شناسه نقش معتبر نیست.')
+                    group = Group.objects.select_for_update().filter(pk=data['role_id']).first()
+                    if not group:
+                        raise ShopError('NOT_FOUND', 'نقش یافت نشد.', 404)
+                    check_access_token(user, group, data.get('token'))
+                    if group.name != name.strip():
+                        raise ShopError('INVALID_ROLE', 'نام نقش موجود از این فرم تغییر نمی‌کند.')
+                if group.permissions.exclude(content_type__app_label='shop').exists():
+                    raise ShopError('FORBIDDEN', 'نقش سیستمی از این مسیر تغییر نمی‌کند.', 403)
+                old = list(group.permissions.values_list('pk', flat=True))
+                group.permissions.set(ids)
+                AuditLog.objects.create(actor=user.get_username(), action='ROLE_UPDATED', entity=f'group:{group.pk}',
+                    changes={'permissions': {'before': old, 'after': ids}})
+            else:
+                uid, ids = data.get('user_id'), data.get('groups')
+                if type(uid) is not int or not isinstance(ids, list) or len(ids) > 100 or any(type(i) is not int for i in ids):
+                    raise ShopError('INVALID_ACCESS', 'کاربر و نقش‌ها معتبر نیستند.')
+                if type(data.get('is_staff')) is not bool:
+                    raise ShopError('INVALID_ACCESS', 'مقدار دسترسی پنل معتبر نیست.')
+                target = get_user_model().objects.select_for_update().filter(pk=uid, is_superuser=False).first()
+                allowed = Group.objects.exclude(permissions__in=Permission.objects.exclude(content_type__app_label='shop'))
+                if not target or set(ids) - set(allowed.values_list('pk', flat=True)):
+                    raise ShopError('INVALID_ACCESS', 'کاربر یا نقش سیستمی از این مسیر قابل تغییر نیست.')
+                if target.groups.exclude(pk__in=allowed).exists():
+                    raise ShopError('FORBIDDEN', 'عضویت سیستمی کاربر از مدیریت پیشرفته بررسی شود.', 403)
+                check_access_token(user, target, data.get('token'))
+                old = {'groups': list(target.groups.values_list('pk', flat=True)), 'is_staff': target.is_staff}
+                target.groups.set(ids)
+                target.is_staff = data['is_staff']
+                target.save(update_fields=['is_staff'])
+                AuditLog.objects.create(actor=user.get_username(), action='ACCESS_UPDATED', entity=f'user:{target.pk}',
+                    changes={'before': old, 'after': {'groups': ids, 'is_staff': target.is_staff}})
+    groups = Group.objects.exclude(permissions__in=Permission.objects.exclude(content_type__app_label='shop')).prefetch_related('permissions').order_by('name')
+    users = get_user_model().objects.filter(is_superuser=False).prefetch_related('groups').order_by('username')[:200]
+    return {'users': [{'id': u.pk, 'username': u.get_username(), 'is_staff': u.is_staff,
+                       'groups': list(u.groups.values_list('pk', flat=True)), 'token': access_token(user, u),
+                       'has_direct_permissions': u.user_permissions.exists()} for u in users],
+        'groups': [{'id': g.pk, 'name': g.name, 'permissions': list(g.permissions.values_list('pk', flat=True)),
+                    'token': access_token(user, g)} for g in groups],
+        'permissions': list(permissions.values('id', 'codename', 'name'))}
 

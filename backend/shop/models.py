@@ -189,7 +189,8 @@ class Order(models.Model):
     expires_at = models.DateTimeField('انقضای رزرو', null=True, blank=True)
 
     class Meta:
-        permissions = [('cancel_order', 'Can cancel pending reservations')]
+        permissions = [('cancel_order', 'Can cancel pending reservations'),
+                       ('view_customer', 'Can view customer accounts')]
 
 
 class OrderItem(models.Model):

@@ -1189,6 +1189,112 @@ test("public metadata and sitemap use configured origin without private URLs", a
   );
 });
 
+test("manage customer workspace filters and opens only the selected account history", async ({
+  page,
+}, info) => {
+  expect(
+    (
+      await authenticatedPost(page.request, "/api/v1/account/", {
+        action: "login",
+        username: "e2e-owner",
+        password: "test-only-owner",
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.goto("/manage");
+  const nav = page.getByRole("navigation", {
+    name: "بخش‌های پنل",
+    exact: true,
+  });
+  await nav.getByRole("button", { name: "مشتریان", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "مشتریان", exact: true }),
+  ).toBeVisible();
+  const search = page.getByLabel("جست‌وجو", { exact: true });
+  await search.fill(`e2e-customer-${info.project.name}`);
+  await page.getByRole("button", { name: "جست‌وجو", exact: true }).click();
+  await expect(page.locator(".operations-table")).toContainText(
+    `${info.project.name}@example.test`,
+  );
+  await page.getByRole("button", { name: "پرونده مشتری", exact: true }).click();
+  const detail = page.locator(".operations-editor");
+  await expect(
+    detail.getByRole("heading", { name: /پرونده مشتری/ }),
+  ).toBeFocused();
+  await expect(detail).toContainText("لغوشده");
+  await expect(detail).not.toContainText(
+    info.project.name === "desktop"
+      ? "mobile@example.test"
+      : "desktop@example.test",
+  );
+  await detail
+    .getByRole("button", { name: "جزئیات رزرو", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "جزئیات رزرو", exact: true }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: "بستن جزئیات", exact: true }).click();
+  await nav.getByRole("button", { name: "سفارش و رزرو", exact: true }).click();
+  await page.getByLabel("وضعیت", { exact: true }).selectOption("CANCELLED");
+  await search.fill(`e2e-customer-${info.project.name}`);
+  await page.getByRole("button", { name: "جست‌وجو", exact: true }).click();
+  await expect(page.locator(".operations-table")).toContainText("لغوشده");
+  await page.getByLabel("وضعیت", { exact: true }).selectOption("EXPIRED");
+  await expect(
+    page.getByText("ردیفی مطابق این فیلتر ثبت نشده است.", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
+test("customer reader cannot access orders roles or account credentials", async ({
+  page,
+}, info) => {
+  expect(
+    (
+      await authenticatedPost(page.request, "/api/v1/account/", {
+        action: "login",
+        username: "e2e-customer-reader",
+        password: "test-only-reader",
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.goto("/manage");
+  const nav = page.getByRole("navigation", {
+    name: "بخش‌های پنل",
+    exact: true,
+  });
+  await expect(
+    nav.getByRole("button", { name: "مشتریان", exact: true }),
+  ).toBeVisible();
+  await expect(
+    nav.getByRole("button", { name: "سفارش و رزرو", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: "مدیریت نقش‌ها و دسترسی‌ها",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await page
+    .getByLabel("جست‌وجو", { exact: true })
+    .fill(`e2e-customer-${info.project.name}`);
+  await page.getByRole("button", { name: "جست‌وجو", exact: true }).click();
+  await page.getByRole("button", { name: "پرونده مشتری", exact: true }).click();
+  await expect(page.locator(".operations-editor")).toContainText(
+    "مجوز مشاهدهٔ سفارش‌ها به این حساب داده نشده است.",
+  );
+  expect(
+    (await page.request.get("/api/v1/operations/?section=orders")).status(),
+  ).toBe(403);
+  expect(
+    (await page.request.get("/api/v1/operations/?access=1")).status(),
+  ).toBe(403);
+});
+
 test("daily product vendor and offer forms work inside operations", async ({
   page,
 }, info) => {

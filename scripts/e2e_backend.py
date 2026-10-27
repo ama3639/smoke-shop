@@ -27,14 +27,22 @@ with tempfile.TemporaryDirectory(prefix='smoke-e2e-') as directory:
     for slug, title, price in [('e2e-one', 'فروشنده آزمون یک', 120000), ('e2e-two', 'فروشنده آزمون دو', 135000)]:
         vendor = Vendor.objects.create(title=title, slug=slug, active=True, city='محیط آزمون')
         Offer.objects.create(product=product, vendor=vendor, stock=20, price=price, approved=True)
-    from django.contrib.auth.models import User, Group
+    from django.contrib.auth.models import User, Group, Permission
+    from shop.models import Cart, Order, OrderItem
+    import uuid
     operator = User.objects.create_user('e2e-operator', password='test-only-operations', is_staff=True)
     operator.groups.add(Group.objects.get(name='Seller'))
     Vendor.objects.get(slug='e2e-one').members.add(operator)
     manager = User.objects.create_user('e2e-manager', password='test-only-management', is_staff=True)
     manager.groups.add(Group.objects.get(name='Marketplace manager'), Group.objects.get(name='Catalog editor'))
     User.objects.create_superuser('e2e-owner', password='test-only-owner')
+    reader = User.objects.create_user('e2e-customer-reader', password='test-only-reader', is_staff=True)
+    reader.user_permissions.add(Permission.objects.get(content_type__app_label='shop', codename='view_customer'))
     for project in ('desktop', 'mobile'):
+        customer = User.objects.create_user(f'e2e-customer-{project}', email=f'{project}@example.test')
+        order = Order.objects.create(cart=Cart.objects.create(user=customer, session_key=f'customer-{project}'),
+            idempotency_key=uuid.uuid4(), total=120000, status='CANCELLED')
+        OrderItem.objects.create(order=order, product=product, title=product.title, quantity=1, unit_price=120000)
         for retry in (0, 1):
             User.objects.create_user(f'supplier-{project}-{retry}', password='Supplier!Safe321')
             User.objects.create_user(f'supply-{project}-{retry}', password='Supply!Safe321')

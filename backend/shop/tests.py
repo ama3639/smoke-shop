@@ -802,6 +802,95 @@ class TobaccoFacetTests(TestCase):
         self.assertEqual([p['slug'] for p in data], ['apple'])
 
 
+class CustomerOperationsTests(TestCase):
+    def setUp(self):
+        self.operator = User.objects.create_user('customer-support', is_staff=True)
+        self.customer = User.objects.create_user('customer-one', first_name='مشتری', email='one@example.test')
+        self.other = User.objects.create_user('customer-two', is_active=False)
+        self.category = Category.objects.create(title='کیف', slug='customer-test')
+        self.product = Product.objects.create(title='کیف آزمون', sku='CUSTOMER-TEST', slug='customer-test', category=self.category)
+        self.cart = Cart.objects.create(session_key='customer-test', user=self.customer)
+        self.order = Order.objects.create(cart=self.cart, idempotency_key=uuid.uuid4(), total=1200)
+        Order.objects.create(cart=Cart.objects.create(session_key='other-customer', user=self.other),
+                             idempotency_key=uuid.uuid4(), total=9900)
+        self.client.force_login(self.operator)
+
+    def grant(self, *codes):
+        self.operator.user_permissions.add(*Permission.objects.filter(content_type__app_label='shop', codename__in=codes))
+
+    def test_customer_permission_is_independent_and_assignable(self):
+        self.grant('view_order')
+        dashboard = self.client.get('/api/v1/operations/').json()['data']
+        self.assertNotIn('customers', [s['key'] for s in dashboard['sections']])
+        for params in [{'section': 'customers'}, {'section': 'customers', 'record': self.customer.pk}]:
+            self.assertEqual(self.client.get('/api/v1/operations/', params).status_code, 403)
+        owner = User.objects.create_superuser('customer-owner')
+        self.client.force_login(owner)
+        access = self.client.get('/api/v1/operations/?access=1').json()['data']
+        self.assertIn('view_customer', [p['codename'] for p in access['permissions']])
+
+    def test_customer_list_excludes_staff_and_supplier_only_accounts(self):
+        from .models import SupplierProfile
+        supplier = User.objects.create_user('supplier-only')
+        SupplierProfile.objects.create(user=supplier, title='تأمین‌کننده', phone='test')
+        SupplierProfile.objects.create(user=self.customer, title='مشتری و تأمین‌کننده', phone='test')
+        self.grant('view_customer')
+        data = self.client.get('/api/v1/operations/?section=customers').json()['data']
+        self.assertEqual({r['id'] for r in data['rows']}, {self.customer.pk, self.other.pk})
+        self.assertFalse(data['can_create'])
+        self.assertFalse(data['can_change'])
+        self.assertTrue(data['can_view_details'])
+        row = next(r for r in data['rows'] if r['id'] == self.customer.pk)
+        self.assertEqual(row['order_count'], 1)
+        self.assertNotIn('password', row)
+        self.assertNotIn('user_permissions', row)
+        filtered = self.client.get('/api/v1/operations/', {'section': 'customers', 'q': 'one@example', 'state': 'active'}).json()['data']
+        self.assertEqual([r['id'] for r in filtered['rows']], [self.customer.pk])
+        self.assertEqual(filtered['stats']['مشتریان'], 2)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'customers', 'record': supplier.pk}).status_code, 404)
+
+    def test_customer_history_requires_each_permission_and_never_crosses_accounts(self):
+        from .models import SupplyRequest
+        SupplyRequest.objects.create(user=self.customer, product=self.product, quantity=2)
+        self.grant('view_customer')
+        params = {'section': 'customers', 'record': self.customer.pk}
+        data = self.client.get('/api/v1/operations/', params).json()['data']
+        self.assertIsNone(data['orders'])
+        self.assertIsNone(data['supply_requests'])
+        self.grant('view_order', 'view_supplyrequest')
+        data = self.client.get('/api/v1/operations/', params).json()['data']
+        self.assertEqual([o['id'] for o in data['orders']], [str(self.order.pk)])
+        self.assertEqual(data['supply_requests'][0]['quantity'], 2)
+        self.assertNotIn('password', data)
+        for rid in ['bad', '-1', '9' * 19, self.operator.pk]:
+            self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'customers', 'record': rid}).status_code, 404)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'customers', 'record': 'new'}).status_code, 404)
+
+    def test_customer_pagination_and_bounded_history(self):
+        self.grant('view_customer', 'view_order')
+        User.objects.bulk_create([User(username=f'page-customer-{n}') for n in range(31)])
+        for n in range(22):
+            Order.objects.create(cart=self.cart, idempotency_key=uuid.uuid4(), total=n)
+        data = self.client.get('/api/v1/operations/?section=customers').json()['data']
+        self.assertEqual((len(data['rows']), data['total'], data['has_next']), (30, 33, True))
+        data = self.client.get('/api/v1/operations/?section=customers&page=2').json()['data']
+        self.assertEqual(len(data['rows']), 3)
+        data = self.client.get('/api/v1/operations/', {'section': 'customers', 'record': self.customer.pk}).json()['data']
+        self.assertEqual((data['order_count'], len(data['orders'])), (23, 20))
+
+    def test_operational_status_filters_are_validated_and_preserve_totals(self):
+        self.grant('view_order', 'view_product', 'view_supplierprofile', 'view_suppliersubmission', 'view_supplyrequest')
+        self.order.status = 'CANCELLED'; self.order.save()
+        for section, state, expected in [('orders', 'CANCELLED', 1), ('orders', 'PENDING_REVIEW', 1),
+                                         ('products', 'review', 1), ('products', 'inactive', 0)]:
+            data = self.client.get('/api/v1/operations/', {'section': section, 'state': state}).json()['data']
+            self.assertEqual(data['total'], expected)
+            self.assertTrue(data['filters'])
+        for section in ['orders', 'products', 'suppliers', 'submissions', 'supply']:
+            self.assertEqual(self.client.get('/api/v1/operations/', {'section': section, 'state': 'bad'}).status_code, 400)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'orders', 'q': 'customer-one'}).json()['data']['total'], 1)
+
+
 class OperationsTests(TestCase):
     def setUp(self):
         from .models import Offer, Vendor

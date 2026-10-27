@@ -12,7 +12,7 @@ from django.forms import modelform_factory
 from functools import wraps
 from django.core import signing
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
@@ -31,7 +31,24 @@ SECTIONS = [
     ('suppliers', 'درخواست تأمین‌کنندگان', 'supplierprofile'),
     ('submissions', 'لیست‌های خصوصی', 'suppliersubmission'),
     ('supply', 'درخواست تأمین', 'supplyrequest'),
+    ('customers', 'مشتریان', 'customer'),
 ]
+
+FILTERS = {
+    'offers': [('pending', 'در انتظار تأیید'), ('empty', 'بدون موجودی'), ('inactive', 'غیرفعال')],
+    'products': [('active', 'فعال'), ('inactive', 'غیرفعال'), ('review', 'نیازمند بررسی')],
+    'orders': [('PENDING_REVIEW', 'در انتظار بررسی'), ('CANCELLED', 'لغوشده'), ('EXPIRED', 'منقضی‌شده')],
+    'customers': [('active', 'فعال'), ('inactive', 'غیرفعال')],
+    **{key: list(model._meta.get_field('status').choices) for key, model in
+       [('suppliers', SupplierProfile), ('submissions', SupplierSubmission), ('supply', SupplyRequest)]},
+}
+
+
+def customers_for():
+    # Supplier-only accounts and staff belong to their own management sections.
+    return get_user_model().objects.filter(is_staff=False, is_superuser=False).filter(
+        Q(supplier_profile__isnull=True) | Q(store_carts__order__isnull=False)).annotate(
+        order_count=Count('store_carts__order', distinct=True)).order_by('-date_joined', '-pk')
 
 
 def manager(user):
@@ -62,19 +79,38 @@ def section_data(user, section, query, state):
     model = next((m for key, _, m in SECTIONS if key == section), None)
     if not model or not permit(user, model) or (section == 'vendors' and not manager(user)):
         raise ShopError('FORBIDDEN', 'دسترسی این بخش را ندارید.', 403)
+    if state and state not in dict(FILTERS.get(section, [])):
+        raise ShopError('INVALID_FILTER', 'فیلتر وضعیت معتبر نیست.')
+    if section == 'customers':
+        qs = customers_for().filter(Q(username__icontains=query) | Q(email__icontains=query) |
+            Q(first_name__icontains=query) | Q(last_name__icontains=query))
+        if state:
+            qs = qs.filter(is_active=state == 'active')
+        return qs, lambda o: {'id': o.pk, 'title': o.get_full_name() or o.get_username(),
+            'username': o.get_username(), 'email': o.email, 'active': o.is_active,
+            'order_count': o.order_count, 'created_at': o.date_joined.isoformat()}
     if section == 'settings':
         return SiteSettings.objects.all(), lambda o: {'id': o.pk, 'title': o.display_name,
             'status': 'نرخ‌ها پیش‌نویس‌اند؛ پرداخت و جریمه فعال نیست', 'updated_at': o.updated_at.isoformat()}
     if section == 'suppliers':
-        return SupplierProfile.objects.filter(title__icontains=query).order_by('-pk'), lambda o: {
+        qs = SupplierProfile.objects.filter(Q(title__icontains=query) | Q(phone__icontains=query))
+        if state:
+            qs = qs.filter(status=state)
+        return qs.order_by('-pk'), lambda o: {
             'id': o.pk, 'title': o.title, 'status': o.get_status_display(), 'phone': o.phone}
     if section == 'submissions':
-        return SupplierSubmission.objects.select_related('supplier').defer('content', 'rows').filter(
-            supplier__title__icontains=query).order_by('-pk'), lambda o: {'id': o.pk, 'title': o.filename,
+        qs = SupplierSubmission.objects.select_related('supplier').defer('content', 'rows').filter(
+            Q(supplier__title__icontains=query) | Q(filename__icontains=query))
+        if state:
+            qs = qs.filter(status=state)
+        return qs.order_by('-pk'), lambda o: {'id': o.pk, 'title': o.filename,
             'vendor': o.supplier.title, 'status': o.get_status_display(),
             'url': f'/api/v1/supplier/?download={o.pk}', 'created_at': o.created_at.isoformat()}
     if section == 'supply':
-        return SupplyRequest.objects.select_related('product').filter(product__title__icontains=query).order_by('-pk'), lambda o: {
+        qs = SupplyRequest.objects.select_related('product').filter(product__title__icontains=query)
+        if state:
+            qs = qs.filter(status=state)
+        return qs.order_by('-pk'), lambda o: {
             'id': o.pk, 'title': o.product.title, 'status': o.get_status_display(), 'quantity': o.quantity,
             'created_at': o.created_at.isoformat()}
     if section == 'offers':
@@ -93,15 +129,22 @@ def section_data(user, section, query, state):
             'editable': permit(user, 'offer', 'change')}
     if section == 'products':
         qs = Product.objects.select_related('category').filter(Q(title__icontains=query) | Q(sku__icontains=query))
+        if state == 'review':
+            qs = qs.filter(legal_status='REVIEW_REQUIRED')
+        elif state:
+            qs = qs.filter(active=state == 'active')
         return qs.order_by('pk'), lambda o: {'id': o.pk, 'title': o.title, 'sku': o.sku, 'status': o.legal_status,
             'active': o.active, 'url': f'/admin/shop/product/{o.pk}/change/'}
     if section == 'vendors':
         return Vendor.objects.filter(title__icontains=query).order_by('pk'), lambda o: {'id': o.pk, 'title': o.title,
             'status': 'فعال' if o.active else 'غیرفعال', 'url': f'/admin/shop/vendor/{o.pk}/change/'}
     if section == 'orders':
-        qs = Order.objects.filter(items__title__icontains=query).distinct() if query else Order.objects.all()
+        qs = Order.objects.filter(Q(items__title__icontains=query) | Q(cart__user__username__icontains=query)).distinct() if query else Order.objects.all()
+        if state:
+            qs = qs.filter(status=state)
         return qs.order_by('-created_at'), lambda o: {'id': str(o.pk), 'title': str(o.pk), 'status': o.status,
-            'total': o.total, 'url': f'/admin/shop/order/{o.pk}/change/'}
+            'total': o.total, 'created_at': o.created_at.isoformat(),
+            'url': f'/admin/shop/order/{o.pk}/change/'}
     if section == 'items':
         qs = OrderItem.objects.select_related('order', 'offer__vendor').filter(title__icontains=query)
         if not manager(user) and not user.has_perm('shop.view_order'):
@@ -266,6 +309,26 @@ def order_detail(user, record_id):
         'items': list(order.items.values('title', 'seller_name', 'quantity', 'unit_price'))}
 
 
+def customer_detail(user, record_id):
+    if not permit(user, 'customer'):
+        raise ShopError('FORBIDDEN', 'مجوز مشاهده مشتریان ندارید.', 403)
+    if not str(record_id).isascii() or not str(record_id).isdecimal() or len(str(record_id)) > 18:
+        raise ShopError('NOT_FOUND', 'مشتری یافت نشد.', 404)
+    customer = customers_for().filter(pk=record_id).first()
+    if not customer:
+        raise ShopError('NOT_FOUND', 'مشتری یافت نشد.', 404)
+    orders = Order.objects.filter(cart__user=customer).order_by('-created_at')
+    requests = SupplyRequest.objects.filter(user=customer).select_related('product').order_by('-created_at')
+    return {'id': customer.pk, 'title': customer.get_full_name() or customer.get_username(),
+        'username': customer.get_username(), 'email': customer.email, 'active': customer.is_active,
+        'created_at': customer.date_joined, 'order_count': customer.order_count,
+        'orders': [{'id': str(o.pk), 'status': o.status, 'total': o.total, 'created_at': o.created_at}
+                   for o in orders[:20]] if permit(user, 'order') else None,
+        'supply_requests': [{'title': s.product.title, 'status': s.get_status_display(),
+                             'quantity': s.quantity, 'created_at': s.created_at}
+                            for s in requests[:20]] if permit(user, 'supplyrequest') else None}
+
+
 def export_csv(user):
     if not permit(user, 'offer'):
         raise ShopError('FORBIDDEN', 'دسترسی عرضه ندارید.', 403)
@@ -403,6 +466,8 @@ def operations(request):
         return ok(access_settings(user))
     if 'record' in request.GET:
         section, rid = request.GET.get('section'), request.GET['record']
+        if section == 'customers':
+            return ok(customer_detail(user, rid))
         return ok(order_detail(user, rid) if section == 'orders' else describe_record(user, section, rid))
     if request.GET.get('export') == 'csv':
         return export_csv(user)
@@ -424,6 +489,8 @@ def operations(request):
         rows, _ = section_data(user, entry['key'], '', '')
         stats[entry['title']] = rows.count()
     return ok({'sections': sections, 'section': section, 'stats': stats,
+        'filters': [{'value': value, 'title': title} for value, title in FILTERS.get(section, [])],
+        'can_view_details': section in ('orders', 'customers'),
         'rows': [serialize(o) for o in qs[(page - 1) * 30:page * 30]],
         'page': page, 'has_next': page * 30 < total, 'total': total,
         'can_edit_offers': permit(user, 'offer', 'change'),

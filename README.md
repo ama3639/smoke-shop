@@ -1,3 +1,78 @@
+```markdown
+# Smokeshop — Catalog and Multi-Vendor Infrastructure
+
+Version **0.10.1** · Alpha · 2026-10-12
+
+A Persian, right-to-left (RTL) catalog for accessories, cigarettes, other tobacco products, and general merchandise. The catalog is not restricted to Winston or a 100-product limit: categories and brands are added via the admin panel, and listings support pagination. The 14 vendor-supplied Winston product images are preserved; categories without data do not display placeholder or synthetic products.
+
+The homepage displays up to six featured cigarette models and provides entry points for six categories: Cigarettes, Vape/Pod, Pipe, Hookah, Tobacco, and Accessories. Other items remain accessible under `/catalog`; legacy data has not been removed. Header search queries across all products, and category/brand links initialize filters from URL parameters. Categories without data render an empty state; no synthetic bestseller metrics or fake discounts are displayed.
+
+Final design reference: Owner's visual mockup featuring Theme E — Titanium Silver; graphite/silver palette, Hero section, six visual category cards, six featured products, four showcase panels, and Footer. All existing pages use the shared Design System. Mockup visuals serve strictly as showcase imagery rather than actual SKU/inventory photos; original vendor photos and local smoke effects are preserved. Prior design directions inspired by Davidoff, El Badia, and Hookah.com continue within the catalog structure.
+
+## Implemented Features
+
+0.10.1 Security Validation: The production audit reports zero vulnerabilities, though an unpatched advisory in a development tool propagates into five high-severity findings. Dependencies have not been downgraded or replaced; details, limitations, and the remediation plan are documented in [Security Notes](docs/SECURITY_NOTES.md). CI runs the production audit across both operating systems and executes all 56 E2E tests against a production build and temporary database. Passing the owner's targeted Windows test does not constitute full local suite completion or manual acceptance sign-off.
+
+- Optional tobacco flavor and weight attributes across the admin panel, API, product detail page, and combined filters; options are populated strictly from publicly registered data.
+- Persian full-text search along with filters for product type, category, brand, vendor, stock availability, and retail/wholesale; the brand list is derived from the entire visible catalog.
+- 18+ self-declaration entry gate with a neutral exit for under-18 visitors and session-only browser persistence; this gate does not constitute formal age verification.
+- Responsive mobile/desktop interface using the locally hosted Vazirmatn font, full uncropped product photography, and the Titanium Silver showcase section. Realistic smoke effects play exclusively within the showcase section; text and product cards have no global smoke/blur overlays, motion can be paused, and OS reduced-motion preferences are respected.
+- Vendor-independent master catalog items; each `Offer` maintains independent pricing, inventory, identifier, and approval status. Only active vendors and approved offers are publicly visible.
+- Vendor selection on the product page, guest shopping cart with separate line items per vendor, payment-free order request submission, and point-in-time snapshots of title, price, and vendor.
+- Transactional inventory reservation and duplicate-request prevention; cancellation and expiration release stock exactly once, backed by an Audit Log and inventory ledger.
+- Management of products, images, sources, vendors/users, offers, orders, branches, compatibility, and feature flags; vendor access is scoped strictly to their own offers and order line items.
+- Fields for manufacturer/brand group, source URL, verification date, and data-limitation notes; unknown unit counts remain `null`.
+- Brand and featured-brand pages, search, browser-stored wishlist, real product gallery, login/registration, and Django Auth accounts; guest carts persist upon login, and account order requests are trackable exclusively by the account owner. Checkout supports order request submission only, with no new payment or shipping integrations.
+- Server-side purchase policy enforcement, CSRF protection, auxiliary 18+ confirmation, and session isolation; covered by API, PostgreSQL, browser, and CI test suites.
+
+## Quick Start on Windows
+
+Install Python ≥ 3.12 and Node.js ≥ 22.18:
+
+```powershell
+Set-Location D:\Smokeshop
+py -3.12 scripts/setup.py
+py -3.12 scripts/dev.py
+
+```
+
+Storefront: `http://localhost:3000` · Admin: `http://localhost:8000/admin/`
+
+Create a superuser account (one-time setup):
+
+```powershell
+.\backend\.venv\Scripts\python.exe backend\manage.py createsuperuser
+
+```
+
+On Linux/macOS, use `python3` and `backend/.venv/bin/python`. Docker, AI services, and external API keys are not required for local development. Before upgrading an existing database, stop all running services and take a backup; incremental migration `0007` adds an optional cart owner field, and re-seeding is not required for existing installations.
+
+## Architecture and Current Scope
+
+Built with Next.js + TypeScript and Django + DRF serializers; uses SQLite for development and PostgreSQL for production and row-level locking tests. Core modules reside within the `shop` app. Redis, Celery, RAG, and Health AI are not implemented in this release; comprehensive architecture docs reflect future roadmap designs.
+
+Per project policy, online purchasing of `cigarette` and `tobacco` items is strictly blocked—even if approval flags are misconfigured. Purchasing non-tobacco items requires legal approval, an active category, an enabled `cart` flag, and valid pricing and inventory. `order_requests` only registers payment-free review requests. No payment gateways, shipping providers, vendor settlements, or commission engines are integrated. The current age confirmation is not a legally binding age verification mechanism.
+
+New inventory reservations carry a default 30-minute expiration window (`ORDER_RESERVATION_MINUTES`). The `expire_orders` management command must be triggered by an external scheduler; no automated scheduler is configured in the development setup. Legacy reservations without expiration timestamps are reviewed manually by operators. Remaining production readiness tasks are detailed in the setup guide.
+
+## Documentation
+
+* [Shared Titanium Silver Design System](https://www.google.com/search?q=docs/design/DESIGN_SYSTEM.md)
+* [0.10.0 Release Notes, Windows Testing, and Changelog](https://www.google.com/search?q=docs/deployment/PREMIUM_STOREFRONT.md)
+* [Installation, Upgrade, Testing, and Production Guide](https://www.google.com/search?q=docs/deployment/LOCAL_SETUP.md)
+* [Admin and Vendor Guide](https://www.google.com/search?q=docs/user/ADMIN_GUIDE.md)
+* [Data Sources and Specification Completeness Limitations](https://www.google.com/search?q=docs/catalog/PRODUCT_DATA.md)
+* [Catalog and Purchase API Contract](https://www.google.com/search?q=docs/api/CATALOG_API.md)
+* [Project Status and Remaining Tasks](PROJECT_CONTEXT.md)
+* [Architectural Decisions](https://www.google.com/search?q=PROJECT_DECISIONS.md) · [Changelog](CHANGELOG.md) · [Documentation Index](https://www.google.com/search?q=docs/README.md) · [Development Rules](AGENTS.md)
+
+```
+
+```
+
+
+
+
 # اسموک‌شاپ — کاتالوگ و زیرساخت چندفروشندگی
 
 نسخه **0.10.1** · Alpha · 2026-10-12

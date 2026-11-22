@@ -36,6 +36,8 @@ export type Product = {
   packs_per_carton: number | null;
   retail_available: boolean;
   wholesale_available: boolean;
+  wholesale_min_quantity: number | null;
+  supply_requestable: boolean;
 };
 export type Catalog = {
   categories: { title: string; slug: string }[];
@@ -50,14 +52,42 @@ export type Catalog = {
   updated_at: string | null;
 };
 export type Offer = {
-  id: number; vendor: string; vendor_slug: string; city: string; phone: string;
-  stock: number; price: number | null; purchasable: boolean;
-  retail_available: boolean; wholesale_available: boolean; updated_at: string;
+  id: number;
+  vendor: string;
+  vendor_slug: string;
+  city: string;
+  phone: string;
+  stock: number;
+  price: number | null;
+  purchasable: boolean;
+  retail_available: boolean;
+  wholesale_available: boolean;
+  updated_at: string;
 };
-export type ProductPage = { items: Product[]; total: number; page: number; page_size: number; pages: number; has_next: boolean };
-export type Vendor = { title: string; slug: string; city: string; address: string; phone: string; description: string };
+export type ProductPage = {
+  items: Product[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  has_next: boolean;
+};
+export type Vendor = {
+  title: string;
+  slug: string;
+  city: string;
+  address: string;
+  phone: string;
+  description: string;
+};
 export type Cart = {
-  items: { id: number; product: Product; quantity: number; offer_id: number | null; seller_name: string }[];
+  items: {
+    id: number;
+    product: Product;
+    quantity: number;
+    offer_id: number | null;
+    seller_name: string;
+  }[];
   total: number;
   checkout_enabled: boolean;
   latest_order_id: string | null;
@@ -65,6 +95,19 @@ export type Cart = {
 export const number = (value: number) =>
   new Intl.NumberFormat("fa-IR").format(value);
 export const money = (value: number) => `${number(value)} تومان`;
+
+export async function upload<T>(path: string, form: FormData): Promise<T> {
+  const session = await api<{ csrf_token: string }>("session/");
+  const response = await fetch(`/api/v1/${path}`, {
+    method: "POST",
+    headers: { "X-CSRFToken": session.csrf_token },
+    body: form,
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success)
+    throw new Error(result.error?.message || "ارسال فایل انجام نشد.");
+  return result.data;
+}
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
@@ -110,4 +153,3 @@ export async function serverApi<T>(path: string): Promise<T> {
   if (!response.ok) throw new Error(`API ${response.status}`);
   return (await response.json()).data;
 }
-

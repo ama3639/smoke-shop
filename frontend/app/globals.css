@@ -1838,3 +1838,59 @@ main {
   gap: 8px;
   margin-bottom: 16px;
 }
+
+/* Operations shares the storefront typography and silver surfaces. */
+.operations-page { padding-block: 3rem; }
+.operations-page p { line-height: 1.9; }
+.operations-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin-block:1.5rem; }
+.operations-toolbar label, .operations-editor label { display:grid; gap:.5rem; }
+.operations-page input, .operations-page select { background:var(--panel, #17191c); color:inherit; border:1px solid #777; border-radius:.5rem; padding:.75rem; max-width:100%; }
+.operations-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1rem; margin-block:2rem; }
+.operations-stats > button { border:1px solid var(--border-default); background:var(--surface-card); color:inherit; border-radius:var(--radius); padding:1rem; display:grid; gap:.5rem; text-align:start; }
+.operations-stats > button:hover { border-color:var(--accent-primary); }
+.operations-stats strong { font-size:1.8rem; }
+.operations-table { overflow-x:auto; max-width:100%; margin-block:1rem; }
+.operations-table table { width:100%; border-collapse:collapse; text-align:right; }
+.operations-table th, .operations-table td { padding:.8rem; border-bottom:1px solid #777; min-width:100px; overflow-wrap:anywhere; }
+.operations-table caption { text-align:right; padding-block:1rem; }
+.operations-editor { display:grid; gap:1rem; margin-block:2rem; max-width:none; }
+.operations-error { color:#ffb4b4; }
+.operations-page [aria-current="page"] { outline:2px solid currentColor; outline-offset:3px; }
+.operations-page :focus-visible { outline:2px solid #eee; outline-offset:4px; }
+
+
+.operations-fields { border: 0; padding: 0; margin: 0; display: grid; gap: 1rem; min-width: 0; }
+.operations-fields label { display: grid; gap: .4rem; overflow-wrap: anywhere; }
+.operations-fields textarea, .operations-fields select { width: 100%; max-width: 100%; min-height: 2.8rem; }
+.operations-fields textarea { min-height: 6rem; }
+.operations-editor input[type="checkbox"] { width: 1.2rem; height: 1.2rem; }
+.operations-editor h2:focus { outline: 2px solid var(--accent-primary); outline-offset: 4px; }
+.operations-permissions { max-height: 24rem; overflow: auto; display: grid; gap: .6rem; margin-block: 1rem; }
+.operations-permissions label { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.operations-workspace { display:grid; grid-template-columns:240px minmax(0,1fr); gap:1.5rem; align-items:start; }
+.operations-workspace-empty { grid-template-columns:minmax(0,1fr); }
+.operations-sidebar { position:sticky; top:7rem; max-height:calc(100dvh - 8rem); overflow-y:auto; border:1px solid var(--border-default); border-radius:var(--radius); padding:.75rem; background:var(--background-secondary); }
+.operations-nav-group + .operations-nav-group { border-top:1px solid var(--border-default); margin-top:1rem; padding-top:.5rem; }
+.operations-nav-group > p { color:var(--text-secondary); font-size:.85rem; margin:.5rem; }
+.operations-nav-link { width:100%; display:flex; align-items:center; gap:.6rem; padding:.75rem .5rem; margin-block:.25rem; border:1px solid transparent; border-radius:var(--radius); background:transparent; color:inherit; text-align:start; }
+.operations-nav-link:hover, .operations-nav-link[aria-current="page"], .operations-nav-link[aria-pressed="true"] { background:var(--surface-card); border-color:var(--border-soft); }
+.operations-nav-link svg { flex-shrink:0; }
+.operations-count { margin-inline-start:auto; color:var(--text-secondary); font-size:.8rem; }
+.operations-main { min-width:0; }
+.operations-main > h2 { margin-top:0; }
+.operations-page .operations-stats { margin-block:0 1.5rem; }
+.operations-page .operations-toolbar > button { display:inline-flex; align-items:center; gap:.5rem; }
+.operations-customer-info { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin:0; }
+.operations-customer-info dt { color:var(--text-secondary); }
+.operations-customer-info dd { margin:0; overflow-wrap:anywhere; }
+.operations-editor li { overflow-wrap:anywhere; }
+@media (max-width: 900px) {
+  .operations-workspace { grid-template-columns:minmax(0,1fr); }
+  .operations-sidebar { position:static; max-height:none; overflow:visible; }
+  .operations-sidebar { min-width:0; }
+  .operations-sidebar nav { display:flex; overflow-x:auto; gap:.5rem; padding:.25rem; }
+  .operations-nav-group { display:contents; }
+  .operations-nav-group > p { display:none; }
+  .operations-nav-link { width:auto; flex-shrink:0; white-space:nowrap; }
+  .operations-nav-group + .operations-nav-group { border-top:0; margin-top:0; padding-top:0; }
+}

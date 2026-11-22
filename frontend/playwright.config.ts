@@ -65,6 +65,7 @@ export default defineConfig({
       url: "http://127.0.0.1:3010",
       env: {
         BACKEND_URL: "http://127.0.0.1:8010",
+        SITE_URL: "https://smoke.example.test",
         NEXT_TELEMETRY_DISABLED: "1",
         NEXT_DIST_DIR: ".next-e2e",
       },

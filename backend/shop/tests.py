@@ -1,7 +1,8 @@
 import io
+import zipfile
 import uuid
 from datetime import date
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import Client, TestCase
@@ -12,6 +13,33 @@ from threading import Barrier
 from unittest import skipUnless
 from .models import AuditLog, Branch, Cart, CartItem, Category, CompatibilityRule, Device, FeatureFlag, Order, Product, StockLedger
 from .services import ShopError, checkout
+
+
+def xlsx_table(rows, formula=False, shared=False):
+    """A real, minimal inline-string XLSX workbook for import regression tests."""
+    from xml.sax.saxutils import escape
+    data = io.BytesIO()
+    with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('[Content_Types].xml', '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
+        z.writestr('_rels/.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="xl/workbook.xml" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"/></Relationships>')
+        z.writestr('xl/workbook.xml', '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>')
+        z.writestr('xl/_rels/workbook.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"/></Relationships>')
+        content = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+        strings = []
+        for n, row in enumerate(rows, 1):
+            content += '<row>'
+            for i, value in enumerate(row):
+                f = '<f>1+1</f>' if formula and n == 2 and i == 0 else ''
+                if shared:
+                    content += f'<c r="{chr(65+i)}{n}" t="s">{f}<v>{len(strings)}</v></c>'
+                    strings.append(str(value))
+                else:
+                    content += f'<c r="{chr(65+i)}{n}" t="inlineStr">{f}<is><t>{escape(str(value))}</t></is></c>'
+            content += '</row>'
+        z.writestr('xl/worksheets/sheet1.xml', content + '</sheetData></worksheet>')
+        if shared:
+            z.writestr('xl/sharedStrings.xml', '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + ''.join('<si><t>'+escape(v)+'</t></si>' for v in strings) + '</sst>')
+    return data.getvalue()
 
 
 class ShopTests(TestCase):
@@ -402,6 +430,48 @@ class ConcurrentCheckoutTests(TransactionTestCase):
         self.assertEqual(offer.stock, 1)
         self.assertEqual(StockLedger.objects.count(), 2)
 
+    def run_bulk_against(self, cancel=False):
+        from .operations import apply_preview, preview
+        from .services import cancel_reservation
+        offer = self.prepare_offer()
+        user = User.objects.create_superuser('bulk-concurrency', password='test-only')
+        order = checkout(self.carts[0], uuid.uuid4()) if cancel else None
+        offer.refresh_from_db()
+        token = preview(user, [{'offer_id': str(offer.pk), 'product_sku': self.product.sku,
+            'vendor_slug': offer.vendor.slug, 'price': '170', 'stock': '3',
+            'updated_at': offer.updated_at.isoformat()}])['token']
+        barrier = Barrier(2)
+        def run(index):
+            try:
+                barrier.wait(timeout=10)
+                try:
+                    if index == 0:
+                        apply_preview(User.objects.get(pk=user.pk), token)
+                        return 'UPDATED'
+                    if cancel:
+                        cancel_reservation(order.pk)
+                    else:
+                        checkout(Cart.objects.get(pk=self.carts[0].pk), uuid.uuid4())
+                    return 'ORDER_OK'
+                except ShopError as error:
+                    return error.code
+            finally:
+                connections['default'].close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(run, range(2)))
+        self.assertEqual(results[1], 'ORDER_OK')
+        self.assertIn(results[0], ['UPDATED', 'STALE_PREVIEW'])
+        offer.refresh_from_db()
+        self.assertEqual(offer.stock, 1 + sum(StockLedger.objects.values_list('delta', flat=True)))
+        self.assertEqual(Order.objects.count(), 1)
+
+    def test_price_import_and_reservation_preserve_inventory(self):
+        self.run_bulk_against()
+
+    def test_price_import_and_cancellation_preserve_inventory(self):
+        self.run_bulk_against(cancel=True)
+
+
 class MarketplaceTests(TestCase):
     def setUp(self):
         from .models import Offer, Vendor
@@ -730,3 +800,515 @@ class TobaccoFacetTests(TestCase):
         p.flavor = 'کرمی'; p.save()
         data = self.client.get('/api/v1/catalog/products/', {'q': 'كرمي'}).json()['data']
         self.assertEqual([p['slug'] for p in data], ['apple'])
+
+
+class CustomerOperationsTests(TestCase):
+    def setUp(self):
+        self.operator = User.objects.create_user('customer-support', is_staff=True)
+        self.customer = User.objects.create_user('customer-one', first_name='مشتری', email='one@example.test')
+        self.other = User.objects.create_user('customer-two', is_active=False)
+        self.category = Category.objects.create(title='کیف', slug='customer-test')
+        self.product = Product.objects.create(title='کیف آزمون', sku='CUSTOMER-TEST', slug='customer-test', category=self.category)
+        self.cart = Cart.objects.create(session_key='customer-test', user=self.customer)
+        self.order = Order.objects.create(cart=self.cart, idempotency_key=uuid.uuid4(), total=1200)
+        Order.objects.create(cart=Cart.objects.create(session_key='other-customer', user=self.other),
+                             idempotency_key=uuid.uuid4(), total=9900)
+        self.client.force_login(self.operator)
+
+    def grant(self, *codes):
+        self.operator.user_permissions.add(*Permission.objects.filter(content_type__app_label='shop', codename__in=codes))
+
+    def test_customer_permission_is_independent_and_assignable(self):
+        self.grant('view_order')
+        dashboard = self.client.get('/api/v1/operations/').json()['data']
+        self.assertNotIn('customers', [s['key'] for s in dashboard['sections']])
+        for params in [{'section': 'customers'}, {'section': 'customers', 'record': self.customer.pk}]:
+            self.assertEqual(self.client.get('/api/v1/operations/', params).status_code, 403)
+        owner = User.objects.create_superuser('customer-owner')
+        self.client.force_login(owner)
+        access = self.client.get('/api/v1/operations/?access=1').json()['data']
+        self.assertIn('view_customer', [p['codename'] for p in access['permissions']])
+
+    def test_customer_list_excludes_staff_and_supplier_only_accounts(self):
+        from .models import SupplierProfile
+        supplier = User.objects.create_user('supplier-only')
+        SupplierProfile.objects.create(user=supplier, title='تأمین‌کننده', phone='test')
+        SupplierProfile.objects.create(user=self.customer, title='مشتری و تأمین‌کننده', phone='test')
+        self.grant('view_customer')
+        data = self.client.get('/api/v1/operations/?section=customers').json()['data']
+        self.assertEqual({r['id'] for r in data['rows']}, {self.customer.pk, self.other.pk})
+        self.assertFalse(data['can_create'])
+        self.assertFalse(data['can_change'])
+        self.assertTrue(data['can_view_details'])
+        row = next(r for r in data['rows'] if r['id'] == self.customer.pk)
+        self.assertEqual(row['order_count'], 1)
+        self.assertNotIn('password', row)
+        self.assertNotIn('user_permissions', row)
+        filtered = self.client.get('/api/v1/operations/', {'section': 'customers', 'q': 'one@example', 'state': 'active'}).json()['data']
+        self.assertEqual([r['id'] for r in filtered['rows']], [self.customer.pk])
+        self.assertEqual(filtered['stats']['مشتریان'], 2)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'customers', 'record': supplier.pk}).status_code, 404)
+
+    def test_customer_history_requires_each_permission_and_never_crosses_accounts(self):
+        from .models import SupplyRequest
+        SupplyRequest.objects.create(user=self.customer, product=self.product, quantity=2)
+        self.grant('view_customer')
+        params = {'section': 'customers', 'record': self.customer.pk}
+        data = self.client.get('/api/v1/operations/', params).json()['data']
+        self.assertIsNone(data['orders'])
+        self.assertIsNone(data['supply_requests'])
+        self.grant('view_order', 'view_supplyrequest')
+        data = self.client.get('/api/v1/operations/', params).json()['data']
+        self.assertEqual([o['id'] for o in data['orders']], [str(self.order.pk)])
+        self.assertEqual(data['supply_requests'][0]['quantity'], 2)
+        self.assertNotIn('password', data)
+        for rid in ['bad', '-1', '9' * 19, self.operator.pk]:
+            self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'customers', 'record': rid}).status_code, 404)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'customers', 'record': 'new'}).status_code, 404)
+
+    def test_customer_pagination_and_bounded_history(self):
+        self.grant('view_customer', 'view_order')
+        User.objects.bulk_create([User(username=f'page-customer-{n}') for n in range(31)])
+        for n in range(22):
+            Order.objects.create(cart=self.cart, idempotency_key=uuid.uuid4(), total=n)
+        data = self.client.get('/api/v1/operations/?section=customers').json()['data']
+        self.assertEqual((len(data['rows']), data['total'], data['has_next']), (30, 33, True))
+        data = self.client.get('/api/v1/operations/?section=customers&page=2').json()['data']
+        self.assertEqual(len(data['rows']), 3)
+        data = self.client.get('/api/v1/operations/', {'section': 'customers', 'record': self.customer.pk}).json()['data']
+        self.assertEqual((data['order_count'], len(data['orders'])), (23, 20))
+
+    def test_operational_status_filters_are_validated_and_preserve_totals(self):
+        self.grant('view_order', 'view_product', 'view_supplierprofile', 'view_suppliersubmission', 'view_supplyrequest')
+        self.order.status = 'CANCELLED'; self.order.save()
+        for section, state, expected in [('orders', 'CANCELLED', 1), ('orders', 'PENDING_REVIEW', 1),
+                                         ('products', 'review', 1), ('products', 'inactive', 0)]:
+            data = self.client.get('/api/v1/operations/', {'section': section, 'state': state}).json()['data']
+            self.assertEqual(data['total'], expected)
+            self.assertTrue(data['filters'])
+        for section in ['orders', 'products', 'suppliers', 'submissions', 'supply']:
+            self.assertEqual(self.client.get('/api/v1/operations/', {'section': section, 'state': 'bad'}).status_code, 400)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'section': 'orders', 'q': 'customer-one'}).json()['data']['total'], 1)
+
+
+class OperationsTests(TestCase):
+    def setUp(self):
+        from .models import Offer, Vendor
+        call_command('seed_roles', verbosity=0)
+        self.user = User.objects.create_user('operations-seller', is_staff=True)
+        self.user.groups.add(Group.objects.get(name='Seller'))
+        category = Category.objects.create(title='آزمون', slug='operations')
+        self.product = Product.objects.create(title='کیف', sku='=SKU', slug='operations-case', category=category)
+        self.vendor = Vendor.objects.create(title='فروشنده', slug='operations-vendor', active=True)
+        self.vendor.members.add(self.user)
+        self.other_vendor = Vendor.objects.create(title='دیگر', slug='other-vendor', active=True)
+        self.offer = Offer.objects.create(product=self.product, vendor=self.vendor, price=100, stock=4, approved=False)
+        self.other = Offer.objects.create(product=self.product, vendor=self.other_vendor, price=200, stock=8)
+        self.client.force_login(self.user)
+
+    def post(self, payload, client=None):
+        return (client or self.client).post('/api/v1/operations/', payload, content_type='application/json')
+
+    def row(self, offer=None, **changes):
+        o = offer or self.offer
+        row = {'offer_id': str(o.pk), 'product_sku': o.product.sku, 'vendor_slug': o.vendor.slug,
+               'price': '150', 'stock': '6', 'updated_at': o.updated_at.isoformat()}
+        return {**row, **changes}
+
+    def token(self, rows=None):
+        from .operations import preview
+        return preview(self.user, rows or [self.row()])['token']
+
+    def test_scoped_dashboard_and_privilege_boundary(self):
+        data = self.client.get('/api/v1/operations/').json()['data']
+        self.assertEqual([r['id'] for r in data['rows']], [self.offer.pk])
+        self.assertEqual(data['stats']['عرضه و موجودی'], 1)
+        self.assertIn('no-store', self.client.get('/api/v1/operations/')['Cache-Control'])
+        for section in ['products', 'vendors', 'orders', 'audit']:
+            self.assertEqual(self.client.get('/api/v1/operations/', {'section': section}).status_code, 403)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'page': '-1'}).status_code, 400)
+        self.assertEqual(self.client.get('/api/v1/operations/', {'q': 'no-match'}).json()['data']['rows'], [])
+
+    def test_preview_does_not_write_and_confirm_keeps_approval(self):
+        response = self.post({'action': 'edit', 'row': self.row()})
+        self.assertEqual(response.status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual((self.offer.price, self.offer.stock), (100, 4))
+        token = response.json()['data']['token']
+        self.assertTrue(token)
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual((self.offer.price, self.offer.stock, self.offer.approved), (150, 6, False))
+        self.assertEqual(StockLedger.objects.get().delta, 2)
+        self.assertEqual(AuditLog.objects.get().actor, self.user.username)
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 409)
+        self.assertEqual(StockLedger.objects.count(), 1)
+
+    def test_stale_offer_rejects_entire_batch(self):
+        from .models import Offer
+        second_product = Product.objects.create(title='دوم', sku='SECOND', slug='second', category=self.product.category)
+        second = Offer.objects.create(product=second_product, vendor=self.vendor, price=10, stock=2)
+        token = self.token([self.row(), self.row(second)])
+        second.stock = 1
+        second.save()
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 409)
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.price, 100)
+        self.assertFalse(AuditLog.objects.exists())
+
+    def test_invalid_rows_and_cross_vendor_cannot_be_confirmed(self):
+        from .operations import preview
+        for changes in [{'price': '-1'}, {'stock': '1.5'}, {'price': '9007199254740992'}, {'product_sku': 'WRONG'}, {'vendor_slug': 'other-vendor'}, {'updated_at': 'old'}, {'offer_id': '9' * 5000}]:
+            result = preview(self.user, [self.row(**changes)])
+            self.assertIsNone(result['token'])
+            self.assertTrue(result['errors'])
+        for rows in [[self.row(self.other)], [self.row(), self.row()], [None]]:
+            self.assertIsNone(preview(self.user, rows)['token'])
+        self.assertEqual(self.post({'action': 'preview', 'csv': 'bad,header\n1,2'}).status_code, 400)
+        self.assertEqual(self.post({'action': 'confirm', 'token': 'tampered'}).status_code, 400)
+        self.assertFalse(AuditLog.objects.exists())
+
+    def test_export_roundtrip_and_spreadsheet_safety(self):
+        import csv
+        response = self.client.get('/api/v1/operations/?export=csv')
+        text = response.content.decode('utf-8-sig')
+        rows = list(csv.DictReader(io.StringIO(text)))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['product_sku'], "'=SKU")
+        preview = self.post({'action': 'preview', 'csv': text}).json()['data']
+        self.assertEqual(preview['errors'], [])
+        self.assertTrue(preview['token'])
+
+    def test_membership_and_permissions_rechecked(self):
+        token = self.token()
+        self.vendor.members.remove(self.user)
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 409)
+        self.vendor.members.add(self.user)
+        self.user.groups.clear()
+        self.assertEqual(self.post({'action': 'confirm', 'token': token}).status_code, 403)
+
+    def test_authentication_token_binding_and_csrf(self):
+        guest = Client()
+        self.assertEqual(guest.get('/api/v1/operations/').status_code, 401)
+        customer = User.objects.create_user('ordinary')
+        guest.force_login(customer)
+        self.assertEqual(guest.get('/api/v1/operations/').status_code, 403)
+        csrf = Client(enforce_csrf_checks=True)
+        csrf.force_login(self.user)
+        self.assertEqual(self.post({'action': 'confirm', 'token': self.token()}, client=csrf).status_code, 403)
+        other_staff = User.objects.create_superuser('other-admin', password='test-only-password')
+        guest.force_login(other_staff)
+        self.assertEqual(self.post({'action': 'confirm', 'token': self.token()}, client=guest).status_code, 403)
+
+    def test_manager_can_view_all_and_operator_cannot_edit_offers(self):
+        from django.contrib.auth.models import Group
+        admin = User.objects.create_superuser('central-admin', password='test-only-password')
+        self.client.force_login(admin)
+        data = self.client.get('/api/v1/operations/').json()['data']
+        self.assertEqual(data['total'], 2)
+        self.user.groups.set([Group.objects.get(name='Order operator')])
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/api/v1/operations/?section=offers').status_code, 403)
+        self.assertEqual(self.post({'action': 'edit', 'row': self.row()}).status_code, 403)
+
+
+class OperationsRecordTests(TestCase):
+    post = OperationsTests.post
+
+    def setUp(self):
+        OperationsTests.setUp(self)
+        self.admin = User.objects.create_superuser('record-manager', password='test-only-password')
+
+    def record(self, section, rid):
+        return self.client.get('/api/v1/operations/', {'section': section, 'record': rid})
+
+    def fields(self, record):
+        return {f['name']: f['value'] for f in record['fields'] if f['kind'] != 'file'}
+
+    def save(self, record, **values):
+        return self.post({'action': 'save_record', 'token': record['token'], **self.fields(record), **values})
+
+    def test_product_form_validation_audit_and_stale_edit(self):
+        self.client.force_login(self.admin)
+        form = self.record('products', self.product.pk).json()['data']
+        self.assertNotIn('legal_status', self.fields(form))
+        self.assertEqual(self.save(form, title='عنوان تازه', description='مشخصات واقعی', legal_status='APPROVED_ONLINE').status_code, 200)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.title, 'عنوان تازه')
+        self.assertEqual(self.product.legal_status, 'REVIEW_REQUIRED')
+        self.assertTrue(AuditLog.objects.filter(action='OPERATIONS_UPDATE', actor=self.admin.username).exists())
+        self.assertEqual(self.save(form, title='کهنه').status_code, 409)
+        new = self.record('products', 'new').json()['data']
+        self.assertEqual(self.save(new, title='جدید', slug='new-record', sku='NEW', description='واقعی', category=self.product.category_id).status_code, 200)
+        self.assertEqual(Product.objects.get(sku='NEW').legal_status, 'REVIEW_REQUIRED')
+        self.assertEqual(self.save(new, title='تکراری', slug='new-record', sku='NEW', category=self.product.category_id).status_code, 400)
+
+    def test_seller_record_scope_and_approval_cannot_be_forged(self):
+        self.assertEqual(self.record('products', self.product.pk).status_code, 403)
+        self.assertEqual(self.record('vendors', self.vendor.pk).status_code, 403)
+        self.assertEqual(self.record('offers', self.other.pk).status_code, 404)
+        form = self.record('offers', self.offer.pk).json()['data']
+        self.assertEqual(self.save(form, seller_sku='LOCAL', approved=True, stock=999, price=999, vendor=self.other_vendor.pk).status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual((self.offer.approved, self.offer.stock, self.offer.price, self.offer.vendor_id), (False, 4, 100, self.vendor.pk))
+        self.vendor.members.remove(self.user)
+        self.assertEqual(self.save(form).status_code, 404)
+
+    def test_create_offer_uses_scope_and_ledger(self):
+        from .models import Offer
+        self.product.legal_status = 'CATALOG_ONLY'
+        self.product.save()
+        second = Product.objects.create(title='دوم', sku='NEW-2', slug='new-2', category=self.product.category, legal_status='CATALOG_ONLY')
+        form = self.record('offers', 'new').json()['data']
+        self.assertEqual(self.save(form, vendor=self.other_vendor.pk, product=second.pk, price=10, stock=3).status_code, 400)
+        self.assertEqual(self.save(form, vendor=self.vendor.pk, product=second.pk, price=10, stock=3, approved=True).status_code, 200)
+        offer = Offer.objects.get(product=second, vendor=self.vendor)
+        self.assertFalse(offer.approved)
+        self.assertEqual(StockLedger.objects.get(offer=offer).delta, 3)
+
+    def test_vendor_stale_data_and_permission_revocation(self):
+        self.client.force_login(self.admin)
+        form = self.record('vendors', self.vendor.pk).json()['data']
+        self.vendor.title = 'عنوان بیرونی'
+        self.vendor.save()
+        self.assertEqual(self.save(form, title='بازنویسی').status_code, 409)
+        self.client.force_login(self.user)
+        self.assertEqual(self.save(form).status_code, 403)
+
+    def test_order_detail_cancel_is_permission_scoped_and_idempotent(self):
+        import uuid
+        from .models import Cart, Order, OrderItem
+        cart = Cart.objects.create(session_key='record-order')
+        order = Order.objects.create(cart=cart, idempotency_key=uuid.uuid4(), total=100)
+        OrderItem.objects.create(order=order, product=self.product, offer=self.offer, title='رزرو', quantity=1, unit_price=100)
+        self.assertEqual(self.record('orders', str(order.pk)).status_code, 403)
+        self.user.groups.set([Group.objects.get(name='Order operator')])
+        self.client.force_login(self.user)
+        detail = self.record('orders', str(order.pk)).json()['data']
+        self.assertEqual(len(detail['items']), 1)
+        self.assertTrue(detail['can_cancel'])
+        for _ in range(2):
+            self.assertEqual(self.post({'action': 'cancel_order', 'id': str(order.pk)}).status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.stock, 5)
+        self.assertEqual(StockLedger.objects.count(), 1)
+        self.assertEqual(self.record('orders', 'invalid').status_code, 404)
+
+    def test_image_form_validates_file_and_preserves_original(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        import tempfile
+        self.client.force_login(self.admin)
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            form = self.record('products', self.product.pk).json()['data']
+            payload = {**self.fields(form), 'description': 'واقعی', 'action': 'save_record', 'token': form['token']}
+            bad = self.client.post('/api/v1/operations/', {**payload, 'image': SimpleUploadedFile('bad.png', b'not-an-image')})
+            self.assertEqual(bad.status_code, 400)
+            from PIL import Image
+            image = io.BytesIO()
+            Image.new('RGB', (8, 8), 'silver').save(image, format='PNG')
+            good = self.client.post('/api/v1/operations/', {**payload, 'image': SimpleUploadedFile('real.png', image.getvalue(), content_type='image/png')})
+            self.assertEqual(good.status_code, 200)
+            self.product.refresh_from_db()
+            old_name = self.product.image.name
+            form = self.record('products', self.product.pk).json()['data']
+            self.assertEqual(self.save(form, title='حفظ تصویر').status_code, 200)
+            self.product.refresh_from_db()
+            self.assertEqual(self.product.image.name, old_name)
+
+
+class OwnerControlsTests(TestCase):
+    def setUp(self):
+        from .models import SupplierProfile
+        from django.core.cache import cache
+        cache.clear()
+        self.senior = User.objects.create_superuser('owner-test', password='TestPass!321')
+        self.user = User.objects.create_user('supplier-test')
+        self.profile = SupplierProfile.objects.create(user=self.user, title='تأمین‌کننده', phone='09120000000')
+        self.client.force_login(self.user)
+
+    def post(self, payload, client=None):
+        return (client or self.client).post('/api/v1/operations/', payload, content_type='application/json')
+
+    def upload(self, name='list.csv', raw=b'product_sku,purchase_price,stock\nCASE,100,2\n'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        return self.client.post('/api/v1/supplier/', {'action': 'submit', 'file': SimpleUploadedFile(name, raw)})
+
+    def approve(self):
+        self.profile.status = 'APPROVED'
+        self.profile.save()
+
+    def test_application_never_grants_staff_or_public_vendor(self):
+        from .models import Vendor
+        r = self.client.post('/api/v1/supplier/', {'action': 'apply', 'title': 'همکار', 'phone': '09121111111',
+            'status': 'APPROVED', 'is_staff': True}, content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        self.profile.refresh_from_db(); self.user.refresh_from_db()
+        self.assertEqual(self.profile.status, 'PENDING')
+        self.assertFalse(self.user.is_staff)
+        self.assertFalse(Vendor.objects.exists())
+        self.assertEqual(self.upload().status_code, 403)
+
+    def test_private_list_ownership_and_review_do_not_publish_prices(self):
+        from .models import SupplierSubmission, Offer
+        self.approve()
+        self.assertEqual(self.upload().status_code, 200)
+        item = SupplierSubmission.objects.get()
+        self.assertEqual(item.rows[0]['purchase_price'], 100)
+        self.assertFalse(Offer.objects.exists())
+        response = self.client.get(f'/api/v1/supplier/?download={item.pk}')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('attachment', response['Content-Disposition'])
+        self.assertIn('no-store', response['Cache-Control'])
+        other = Client(); other.force_login(User.objects.create_user('other-supplier'))
+        self.assertEqual(other.get(f'/api/v1/supplier/?download={item.pk}').status_code, 404)
+        self.assertEqual(other.get('/api/v1/supplier/').json()['data']['submissions'], [])
+        self.assertEqual(Client().get(f'/api/v1/supplier/?download={item.pk}').status_code, 401)
+        self.client.force_login(self.senior)
+        form = self.client.get('/api/v1/operations/', {'section': 'submissions', 'record': item.pk}).json()['data']
+        self.assertEqual(self.post({'action': 'save_record', 'token': form['token'], 'status': 'REVIEWED', 'review_note': 'دریافت شد'}).status_code, 200)
+        self.assertFalse(Offer.objects.exists())
+        self.assertEqual(self.client.get(f'/api/v1/supplier/?download={item.pk}').status_code, 200)
+
+    def test_pdf_invalid_files_formula_and_suspension(self):
+        from .models import SupplierSubmission
+        self.approve()
+        self.assertEqual(self.upload('reference.pdf', b'%PDF-1.7\nreference-only').status_code, 200)
+        self.assertEqual(self.upload('bad.pdf', b'<html>bad</html>').status_code, 400)
+        self.assertEqual(self.upload('bad.exe', b'bad').status_code, 400)
+        self.assertEqual(self.upload('bad.csv', b'product_sku,purchase_price,stock\nCASE,-1,2').status_code, 400)
+        self.assertEqual(self.upload('formula.csv', b'product_sku,purchase_price,stock\n=1+1,100,2').status_code, 400)
+        rows = [['product_sku', 'purchase_price', 'stock'], ['CASE', 100, 2]]
+        self.assertEqual(self.upload('list.xlsx', xlsx_table(rows)).status_code, 200)
+        self.assertEqual(self.upload('shared.xlsx', xlsx_table(rows, shared=True)).status_code, 200)
+        self.assertEqual(self.upload('formula.xlsx', xlsx_table(rows, formula=True)).status_code, 400)
+        self.assertEqual(SupplierSubmission.objects.count(), 3)
+        self.profile.status = 'SUSPENDED'; self.profile.save()
+        self.assertEqual(self.upload().status_code, 403)
+        self.assertEqual(self.client.post('/api/v1/supplier/', {'action': 'apply', 'title': 'new', 'phone': '09120000000'}, content_type='application/json').status_code, 403)
+
+    def test_upload_limits_and_malformed_spreadsheets(self):
+        from .tabular import read_table
+        from .suppliers import QUOTE_COLUMNS
+        self.approve()
+        self.assertEqual(self.upload('large.csv', b'a' * 1000001).status_code, 400)
+        self.assertEqual(self.upload('incomplete.csv', b'product_sku,purchase_price,stock\nCASE,1,').status_code, 400)
+        for _ in range(10):
+            self.assertEqual(self.upload().status_code, 200)
+        self.assertEqual(self.upload().status_code, 429)
+        for raw in (b'bad zip', xlsx_table([['wrong-header'], ['CASE']])):
+            with self.assertRaises(ShopError):
+                read_table(raw, 'bad.xlsx', QUOTE_COLUMNS)
+        bomb = io.BytesIO()
+        with zipfile.ZipFile(bomb, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('xl/workbook.xml', b'a' * 10000001)
+        with self.assertRaises(ShopError):
+            read_table(bomb.getvalue(), 'bomb.xlsx', QUOTE_COLUMNS)
+
+    def test_supplier_csrf_and_role_separation(self):
+        csrf = Client(enforce_csrf_checks=True); csrf.force_login(self.user)
+        self.assertEqual(csrf.post('/api/v1/supplier/', {'action': 'apply'}).status_code, 403)
+        self.assertEqual(self.client.get('/api/v1/operations/?access=1').status_code, 403)
+        self.user.is_staff = True; self.user.save()
+        self.user.user_permissions.add(Permission.objects.get(codename='change_user'))
+        self.assertEqual(self.client.get('/api/v1/operations/?access=1').status_code, 403)
+        self.assertEqual(self.client.get(f'/admin/auth/user/{self.senior.pk}/change/').status_code, 403)
+
+    def test_senior_roles_are_scoped_audited_and_stale_checked(self):
+        self.client.force_login(self.senior)
+        perm = Permission.objects.get(codename='view_suppliersubmission')
+        r = self.post({'action': 'save_role', 'name': 'Private list reviewer', 'permissions': [perm.pk]})
+        self.assertEqual(r.status_code, 200)
+        access = r.json()['data']; group = next(g for g in access['groups'] if g['name'] == 'Private list reviewer')
+        user = next(u for u in access['users'] if u['id'] == self.user.pk)
+        payload = {'action': 'save_access', 'user_id': user['id'], 'is_staff': True, 'groups': [group['id']], 'token': user['token']}
+        self.assertEqual(self.post(payload).status_code, 200)
+        self.assertEqual(self.post(payload).status_code, 409)
+        self.assertTrue(AuditLog.objects.filter(action='ACCESS_UPDATED').exists())
+        self.assertEqual(self.post({'action': 'save_role', 'name': 'Escalate', 'permissions': [Permission.objects.get(codename='change_user').pk]}).status_code, 400)
+        self.assertEqual(self.post({'action': 'save_access', 'user_id': self.senior.pk, 'is_staff': False, 'groups': []}).status_code, 400)
+        role_payload = {'action': 'save_role', 'role_id': group['id'], 'name': group['name'], 'permissions': [], 'token': group['token']}
+        self.assertEqual(self.post(role_payload).status_code, 200)
+        self.assertEqual(self.post(role_payload).status_code, 409)
+
+    def test_settings_public_allowlist_and_optimistic_update(self):
+        from .models import SiteSettings
+        SiteSettings.objects.get_or_create(pk=1)
+        self.assertEqual(self.client.get('/api/v1/operations/?section=settings&record=1').status_code, 403)
+        self.client.force_login(self.senior)
+        record = self.client.get('/api/v1/operations/?section=settings&record=1').json()['data']
+        payload = {'action': 'save_record', 'token': record['token'], 'display_name': 'نام آزمایشی',
+            'reservation_minutes': '45', 'tax_percent': '10.00', 'urgent_fee': '0', 'cancellation_fixed': '0'}
+        self.assertEqual(self.post(payload).status_code, 200)
+        self.assertEqual(self.post(payload).status_code, 409)
+        public = Client().get('/api/v1/site/').json()['data']
+        self.assertEqual(set(public), {'display_name', 'support_phone', 'support_email'})
+        self.assertEqual(public['display_name'], 'نام آزمایشی')
+        record = self.client.get('/api/v1/operations/?section=settings&record=1').json()['data']
+        fee = next(f for f in record['fields'] if f['name'] == 'urgent_fee')
+        self.assertEqual(fee['value'], '0')
+        self.assertEqual(self.post({**payload, 'token': record['token'], 'tax_percent': '101'}).status_code, 400)
+
+    def test_xlsx_offer_preview_uses_existing_stale_and_scope_checks(self):
+        from .models import Vendor, Offer
+        from .operations import COLUMNS
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        category = Category.objects.create(title='case', slug='case')
+        p = Product.objects.create(title='case', sku='CASE', slug='case', category=category)
+        vendor = Vendor.objects.create(title='vendor', slug='vendor')
+        offer = Offer.objects.create(product=p, vendor=vendor, price=10, stock=1)
+        self.client.force_login(self.senior)
+        raw = xlsx_table([COLUMNS, [offer.pk, 'CASE', 'vendor', 15, 2, offer.updated_at.isoformat()]])
+        response = self.client.post('/api/v1/operations/', {'action': 'preview', 'file': SimpleUploadedFile('prices.xlsx', raw)})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['data']['errors'], [])
+        offer.refresh_from_db(); self.assertEqual(offer.price, 10)
+        self.assertEqual(self.post({'action': 'confirm', 'token': response.json()['data']['token']}).status_code, 200)
+        offer.refresh_from_db(); self.assertEqual(offer.price, 15)
+        self.assertFalse(offer.approved)
+
+    def test_reservation_setting_affects_only_new_orders_and_no_tax_is_charged(self):
+        from .models import SiteSettings
+        category = Category.objects.create(title='case', slug='case', online_enabled=True)
+        p = Product.objects.create(title='case', sku='CASE', slug='case', category=category, price=100,
+            stock=2, legal_status='APPROVED_ONLINE', legal_reference='test approval')
+        FeatureFlag.objects.create(key='cart', is_enabled=True)
+        FeatureFlag.objects.create(key='order_requests', is_enabled=True)
+        config, _ = SiteSettings.objects.get_or_create(pk=1)
+        config.reservation_minutes = 45; config.save()
+        cart = Cart.objects.create(session_key='owner-settings')
+        CartItem.objects.create(cart=cart, product=p, quantity=1)
+        order = checkout(cart, uuid.uuid4())
+        self.assertEqual(order.total, 100)
+        self.assertAlmostEqual((order.expires_at - order.created_at).total_seconds(), 2700, delta=2)
+        expires = order.expires_at
+        config.reservation_minutes = 10; config.save()
+        order.refresh_from_db(); self.assertEqual(order.expires_at, expires)
+
+    def test_supply_request_is_unpaid_owned_idempotent_and_policy_guarded(self):
+        from .models import SupplyRequest
+        category = Category.objects.create(title='case', slug='case', online_enabled=True)
+        p = Product.objects.create(title='case', sku='CASE', slug='case', category=category, stock=0, price=100,
+            legal_status='APPROVED_ONLINE', legal_reference='test approval')
+        FeatureFlag.objects.create(key='cart', is_enabled=True)
+        payload = {'product_id': p.pk, 'quantity': 2}
+        Product.objects.filter(pk=p.pk).update(price=0)
+        public = self.client.get('/api/v1/catalog/products/case/').json()['data']
+        self.assertTrue(public['supply_requestable'])
+        self.assertFalse(public['purchasable'])
+        url = '/api/v1/supply-requests/'
+        self.assertEqual(Client().post(url, payload, content_type='application/json').status_code, 401)
+        for _ in range(2):
+            response = self.client.post(url, payload, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.json()['data']['payment_required'])
+        self.assertEqual(SupplyRequest.objects.count(), 1)
+        self.assertFalse(Order.objects.exists()); self.assertFalse(StockLedger.objects.exists())
+        self.assertEqual(len(self.client.get('/api/v1/account/').json()['data']['supply_requests']), 1)
+        other = Client(); other.force_login(User.objects.create_user('other-customer'))
+        self.assertEqual(other.get('/api/v1/account/').json()['data']['supply_requests'], [])
+        for kind in ('cigarette', 'tobacco'):
+            Product.objects.filter(pk=p.pk).update(product_type=kind)
+            self.assertEqual(self.client.post(url, payload, content_type='application/json').status_code, 403)
+        Product.objects.filter(pk=p.pk).update(product_type='other', stock=1)
+        self.assertEqual(self.client.post(url, payload, content_type='application/json').status_code, 409)

@@ -40,6 +40,49 @@ export default function Purchase({ product }: { product: Product }) {
       setBusy(false);
     }
   }
+  async function requestSupply() {
+    setBusy(true);
+    setMessage("");
+    try {
+      await mutate("supply-requests/", { product_id: product.id, quantity });
+      setMessage(
+        "درخواست تأمین ثبت شد؛ بدون پرداخت، رزرو موجودی یا تضمین تأمین. پاسخ در حساب من نمایش داده می‌شود.",
+      );
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "درخواست ثبت نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (product.supply_requestable)
+    return (
+      <div className="purchase-box">
+        <h3>درخواست تأمین</h3>
+        <p>
+          بدون موجودی؛ قیمت و امکان تأمین باید توسط پشتیبانی تأیید شود. این
+          درخواست سفارش قطعی نیست و پرداخت یا رزرو موجودی ندارد.
+        </p>
+        <label className="quantity-field">
+          تعداد درخواست
+          <input
+            type="number"
+            min="1"
+            max="20"
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+          />
+        </label>
+        <button
+          className="button secondary"
+          disabled={busy}
+          onClick={() => void requestSupply()}
+        >
+          درخواست تأمین کالای ناموجود
+        </button>
+        <Link href="/account">ورود و پیگیری در حساب من</Link>
+        {message && <p role="status">{message}</p>}
+      </div>
+    );
   if (!product.purchasable)
     return (
       <div className="purchase-box">

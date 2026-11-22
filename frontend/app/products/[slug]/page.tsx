@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,9 +21,14 @@ export async function generateMetadata({
   const { slug } = await params;
   try {
     const p = await serverApi<Product>(`catalog/products/${slug}/`);
-    return { title: p.title, description: p.description };
+    return pageMetadata(
+      p.title,
+      p.description,
+      `/products/${encodeURIComponent(p.slug)}`,
+      p.image,
+    );
   } catch {
-    return { title: "مشخصات کالا" };
+    return { title: "مشخصات کالا", robots: { index: false, follow: false } };
   }
 }
 
@@ -135,6 +141,14 @@ export default async function ProductPage({
               <dt>موجودی</dt>
               <dd>{p.stock > 0 ? "موجود" : "بدون موجودی ثبت‌شده"}</dd>
             </div>
+            {p.product_type !== "cigarette" &&
+              p.product_type !== "tobacco" &&
+              p.wholesale_min_quantity !== null && (
+                <div>
+                  <dt>حداقل تعداد عمده (واحد فروش ثبت‌شده)</dt>
+                  <dd>{number(p.wholesale_min_quantity)}</dd>
+                </div>
+              )}
           </dl>
           <Purchase product={p} />
           {p.offers.length > 0 && (

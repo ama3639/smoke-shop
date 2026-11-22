@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-export const metadata: Metadata = { title: "واحدهای عرضه سیگار" };
+import { pageMetadata } from "@/lib/seo";
+export const metadata = pageMetadata("راهنمای عرضه", "راهنمای بررسی بسته‌بندی، مدل و عرضهٔ تکی و عمده.", "/guide");
 export default function Guide() {
   return (
     <article className="container prose-page">

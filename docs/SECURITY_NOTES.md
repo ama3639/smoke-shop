@@ -1,3 +1,20 @@
+# بررسی تازهٔ اصلاحات — 2026-10-26
+
+این قسمت جایگزین وضعیت فعلی وابستگی‌ها در گزارش تاریخی زیر است؛ ممیزی جامع یا تأیید تولید نیست.
+
+- Audit تازه روی Next 16.4.0 یک وابستگی Critical گزارش کرد: GHSA-2464-fhr4-w9xw و GHSA-673q-mjm6-r5xr (RCE)، همراه GHSA-p3m5-59mp-jv5r (DoS). نبودن مسیر exploit در این بررسی اثبات نشده و کد exploit اجرا نشده است.
+- Next و eslint-config-next هر دو به patch سازگار 16.4.3 و lockfile واقعی npm ارتقا یافتند؛ force، override، downgrade یا حذف lint انجام نشد.
+- npm audit --omit=dev --json و npm audit --json پس از نصب: صفر finding، هر دو exit 0 در زمان بررسی. Advisory تاریخی braces دیگر در گراف فعلی نصب گزارش نمی‌شود؛ این نتیجه اثبات امنیت کل برنامه نیست.
+- typecheck، lint، سه unit و build تولید با 16.4.3 موفق بودند. گزارش تست نقش‌ها و اجرای مرورگر در سند اجرای پروژه ثبت می‌شود.
+- عملیات قیمت/موجودی پشت session، staff و permission فعلی، CSRF و scope فروشنده است؛ preview امضاشده به حساب متصل و ۱۰ دقیقه معتبر است. نسخهٔ عرضه بعد از قفل ردیف کنترل می‌شود تا تغییر هم‌زمان موجودی/قیمت بازنویسی نشود. عملیات و پاسخ خطا no-store هستند.
+- CSP فعلی فقط base-uri/object-src/form-action/frame-ancestors را محدود می‌کند و سیاست script/style کامل نیست. 2FA، cache/rate-limit مشترک و پیکربندی تولید هنوز تأیید/پیاده‌سازی کامل نشده‌اند.
+
+منابع رسمی: [Image Optimization](https://github.com/advisories/GHSA-2464-fhr4-w9xw)، [Server Actions](https://github.com/advisories/GHSA-p3m5-59mp-jv5r)، [use cache](https://github.com/advisories/GHSA-673q-mjm6-r5xr).
+
+---
+
+## گزارش تاریخی 2026-10-12
+
 # Security Notes — 0.10.1
 
 تاریخ بررسی: 2026-10-12. دامنه: هشدار npm گزارش‌شده توسط مالک، نه ممیزی جامع امنیتی یا مجوز Production. نسخه storefront و سیاست خرید/حساب/داده تغییر نکرده است.

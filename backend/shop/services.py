@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-from .models import AuditLog, CartItem, FeatureFlag, Offer, Order, OrderItem, Product, StockLedger
+from .models import AuditLog, CartItem, FeatureFlag, Offer, Order, OrderItem, Product, StockLedger, SiteSettings
 
 
 class ShopError(Exception):
@@ -60,8 +60,9 @@ def checkout(cart, key):
                 raise ShopError('OUT_OF_STOCK', 'موجودی کافی نیست؛ سبد را بازبینی کنید.', 409)
             item.product, item.offer = product, offer
             total += (offer.price if offer else product.price) * item.quantity
+        configured_minutes = SiteSettings.objects.filter(pk=1).values_list('reservation_minutes', flat=True).first()
         order = Order.objects.create(cart=cart, idempotency_key=key, total=total,
-                                     expires_at=timezone.now() + timedelta(minutes=settings.ORDER_RESERVATION_MINUTES))
+                                     expires_at=timezone.now() + timedelta(minutes=configured_minutes or settings.ORDER_RESERVATION_MINUTES))
         for item in items:
             OrderItem.objects.create(order=order, product=item.product, offer=item.offer,
                                      seller_name=item.offer.vendor.title if item.offer else '', title=item.product.title,
@@ -82,6 +83,7 @@ def cancel_reservation(order_id, actor='operator-cli', expired=False):
     if expired and (not order.expires_at or order.expires_at > timezone.now()):
         return False
     for item in order.items.order_by('product_id', 'offer_id'):
+        Product.objects.select_for_update().get(pk=item.product_id)
         inventory = Offer.objects.filter(pk=item.offer_id) if item.offer_id else Product.objects.filter(pk=item.product_id)
         inventory.update(stock=F('stock') + item.quantity, updated_at=timezone.now())
         StockLedger.objects.create(product_id=item.product_id, offer_id=item.offer_id,

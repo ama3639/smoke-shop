@@ -39,6 +39,8 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Test local startup sequencing
+        run: python -m unittest discover -s scripts -p test_dev.py -v
       - run: python -m venv backend/.venv
       - run: backend/.venv/bin/python -m pip install -r backend/requirements.txt
       - run: backend/.venv/bin/python backend/manage.py check
@@ -57,12 +59,21 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
-      - run: npx playwright install --with-deps chromium
+      - name: Use installed Linux browser or install Chromium
+        shell: bash
         working-directory: frontend
+        run: |
+          smoke_browser="$(command -v google-chrome || command -v chromium || true)"
+          if [ -n "$smoke_browser" ]; then
+            echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE=$smoke_browser" >> "$GITHUB_ENV"
+            "$smoke_browser" --version
+          else
+            npx playwright install --with-deps chromium
+          fi
       - run: npm run test:e2e
         working-directory: frontend
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: browser-test-results
           path: frontend/test-results/
@@ -82,6 +93,8 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Test local startup sequencing
+        run: python -m unittest discover -s scripts -p test_dev.py -v
       - run: python -m venv backend/.venv
       - run: backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
       - run: backend/.venv/Scripts/python.exe backend/manage.py check
@@ -115,8 +128,9 @@ jobs:
       - run: npm run test:e2e -- --max-failures=1
         working-directory: frontend
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: browser-test-results-windows
           path: frontend/test-results/
+
 

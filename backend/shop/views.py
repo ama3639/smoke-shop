@@ -14,9 +14,10 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.http import require_http_methods
-from .models import Branch, Cart, CartItem, Device, FeatureFlag, Offer, Order, Product, Vendor, Category, normalize
+from django.views.decorators.cache import never_cache
+from .models import Branch, Cart, CartItem, Device, FeatureFlag, Offer, Order, Product, Vendor, Category, normalize, SiteSettings, SupplyRequest, AuditLog
 from .serializers import ProductSerializer
-from .services import ShopError, can_purchase_offer, check_purchase, checkout
+from .services import ShopError, can_purchase, can_purchase_offer, check_purchase, checkout
 
 
 def ok(data, status=200):
@@ -79,6 +80,7 @@ def account_response(request):
     return ok({'authenticated': True,
                'user': {'username': request.user.username, 'name': request.user.first_name, 'email': request.user.email},
                'orders': list(orders[(page - 1) * 20:page * 20].values('id', 'total', 'status', 'created_at')),
+               'supply_requests': list(SupplyRequest.objects.filter(user=request.user).order_by('-pk')[:30].values('id', 'product__title', 'quantity', 'status', 'review_note')),
                'pagination': {'page': page, 'pages': paginator.num_pages, 'total': paginator.count, 'has_next': page < paginator.num_pages}})
 
 
@@ -173,6 +175,39 @@ def account(request):
 def health(request):
     Category.objects.exists()
     return ok({'status': 'ok'})
+
+
+@never_cache
+@require_http_methods(['GET'])
+def site_settings(request):
+    value = SiteSettings.objects.filter(pk=1).values('display_name', 'support_phone', 'support_email').first()
+    return ok(value or {'display_name': 'اسموک‌شاپ', 'support_phone': '', 'support_email': ''})
+
+
+@never_cache
+@require_http_methods(['POST'])
+@endpoint
+def supply_request(request):
+    if not request.user.is_authenticated or not request.user.is_active:
+        raise ShopError('AUTH_REQUIRED', 'برای درخواست تأمین، ابتدا وارد حساب شوید.', 401)
+    data = body(request)
+    pid, quantity = data.get('product_id'), data.get('quantity')
+    if type(pid) is not int or not 1 <= pid <= 9223372036854775807 or type(quantity) is not int or not 1 <= quantity <= 20:
+        raise ShopError('INVALID_QUANTITY', 'شناسه کالا و تعداد ۱ تا ۲۰ معتبر لازم است.')
+    with transaction.atomic():
+        # Same product-first order as inventory operations; this request never reserves stock.
+        p = Product.objects.select_for_update().select_related('category').filter(pk=pid).first()
+        if not p or not can_purchase(p):
+            raise ShopError('LEGAL_STATUS_BLOCKED', 'درخواست تأمین این کالا فعال نیست.', 403)
+        offers = list(p.offers.select_related('vendor'))
+        available = sum(o.stock for o in offers if o.active and o.approved and o.vendor.active) if offers else p.stock
+        if available:
+            raise ShopError('IN_STOCK', 'موجودی ثبت شده است؛ صفحه را تازه‌سازی کنید.', 409)
+        throttle_account(request, 'supply-request', str(request.user.pk))
+        item, created = SupplyRequest.objects.get_or_create(user=request.user, product=p, status='PENDING', defaults={'quantity': quantity})
+        if created:
+            AuditLog.objects.create(actor=request.user.get_username(), action='SUPPLY_REQUESTED', entity=f'supplyrequest:{item.pk}')
+    return ok({'id': item.pk, 'status': item.status, 'quantity': item.quantity, 'payment_required': False})
 
 
 @require_http_methods(['GET', 'POST'])

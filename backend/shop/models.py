@@ -44,6 +44,8 @@ class Product(models.Model):
     packs_per_carton = models.PositiveSmallIntegerField('تعداد بسته در باکس', null=True, blank=True, default=None, validators=[MinValueValidator(1), MaxValueValidator(100)])
     retail_available = models.BooleanField('معرفی عرضه تکی', default=True)
     wholesale_available = models.BooleanField('معرفی عرضه عمده', default=False)
+    wholesale_min_quantity = models.PositiveSmallIntegerField('حداقل تعداد عرضه عمده (واحد فروش ثبت‌شده)',
+        null=True, blank=True, validators=[MinValueValidator(1)])
     description = models.TextField('توضیحات')
     material = models.CharField('جنس', max_length=100, blank=True)
     dimensions = models.CharField('ابعاد', max_length=100, blank=True)
@@ -187,7 +189,8 @@ class Order(models.Model):
     expires_at = models.DateTimeField('انقضای رزرو', null=True, blank=True)
 
     class Meta:
-        permissions = [('cancel_order', 'Can cancel pending reservations')]
+        permissions = [('cancel_order', 'Can cancel pending reservations'),
+                       ('view_customer', 'Can view customer accounts')]
 
 
 class OrderItem(models.Model):
@@ -214,4 +217,75 @@ class AuditLog(models.Model):
     entity = models.CharField(max_length=100)
     changes = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class SiteSettings(models.Model):
+    display_name = models.CharField('نام نمایشی سایت', max_length=150, default='اسموک‌شاپ')
+    support_phone = models.CharField('تلفن پشتیبانی', max_length=30, blank=True)
+    support_email = models.EmailField('ایمیل پشتیبانی', blank=True)
+    reservation_minutes = models.PositiveSmallIntegerField('مهلت رزرو پیش از پرداخت (دقیقه)', default=30,
+        validators=[MinValueValidator(1), MaxValueValidator(1440)])
+    preparation_minutes = models.PositiveSmallIntegerField('زمان آماده‌سازی پس از پرداخت (دقیقه)', null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(1440)], help_text='پیش‌نویس؛ گردش پرداخت/ارسال هنوز فعال نیست.')
+    urgent_minutes = models.PositiveSmallIntegerField('زمان آماده‌سازی فوری (دقیقه)', null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(1440)])
+    urgent_fee = models.PositiveBigIntegerField('هزینه فوریت (تومان؛ پیش‌نویس)', null=True, blank=True,
+        validators=[MaxValueValidator(9007199254740991)])
+    tax_percent = models.DecimalField('مالیات پیشنهادی مالک (درصد؛ پیش‌نویس)', max_digits=5, decimal_places=2,
+        default=Decimal('10'), validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='صرفاً تنظیم پیشنهادی؛ تا تعیین مبنا و تأیید قواعد مالی، به مبلغ سفارش اضافه نمی‌شود.')
+    cancellation_percent = models.DecimalField('جریمه لغو (درصد؛ پیش‌نویس)', max_digits=5, decimal_places=2,
+        null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    cancellation_fixed = models.PositiveBigIntegerField('جریمه لغو (تومان؛ پیش‌نویس)', null=True, blank=True,
+        validators=[MaxValueValidator(9007199254740991)])
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(pk=1), name='site_settings_singleton')]
+
+    def __str__(self):
+        return self.display_name
+
+
+class SupplierProfile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='supplier_profile')
+    title = models.CharField('نام تأمین‌کننده', max_length=150)
+    phone = models.CharField('شماره تماس (تأییدنشده)', max_length=30)
+    status = models.CharField('وضعیت درخواست', max_length=12, default='PENDING',
+        choices=[('PENDING', 'در انتظار بررسی'), ('APPROVED', 'تأییدشده'), ('SUSPENDED', 'تعلیق‌شده')])
+    review_note = models.CharField('پاسخ پشتیبانی', max_length=500, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+
+class SupplierSubmission(models.Model):
+    supplier = models.ForeignKey(SupplierProfile, on_delete=models.PROTECT, related_name='submissions')
+    filename = models.CharField('نام فایل', max_length=150)
+    content = models.BinaryField(editable=False)  # Private: never served from public MEDIA_URL.
+    rows = models.JSONField(default=list, editable=False)
+    status = models.CharField('وضعیت بررسی', max_length=12, default='PENDING',
+        choices=[('PENDING', 'در انتظار بررسی'), ('REVIEWED', 'بررسی‌شده'), ('REJECTED', 'ردشده')])
+    review_note = models.CharField('پاسخ پشتیبانی', max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.filename
+
+
+class SupplyRequest(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    quantity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)])
+    status = models.CharField('وضعیت درخواست تأمین', max_length=12, default='PENDING',
+        choices=[('PENDING', 'در انتظار بررسی'), ('REVIEWED', 'بررسی‌شده'), ('CLOSED', 'بسته‌شده')])
+    review_note = models.CharField('پاسخ پشتیبانی', max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'product'], condition=Q(status='PENDING'),
+            name='one_pending_supply_request')]
 

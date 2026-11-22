@@ -2,6 +2,10 @@ from django.contrib import admin, messages
 from django.db import transaction
 from .models import AuditLog, Branch, Category, CompatibilityRule, Device, FeatureFlag, Offer, Order, OrderItem, Product, StockLedger, Vendor
 from .services import ShopError, cancel_reservation
+from .models import SiteSettings, SupplierProfile, SupplierSubmission, SupplyRequest
+from django.contrib.auth.admin import UserAdmin, GroupAdmin
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 
 
 def manages_marketplace(user):
@@ -25,6 +29,63 @@ class AuditedAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False  # Deactivate catalog entries instead; retain order and audit history.
+
+
+@admin.register(SiteSettings)
+class SettingsAdmin(AuditedAdmin):
+    def has_add_permission(self, request):
+        return False
+
+
+# Private documents remain behind the dedicated authenticated download endpoint.
+@admin.register(SupplierProfile)
+class SupplierAdmin(AuditedAdmin):
+    fields = ['user', 'title', 'phone', 'status', 'review_note']
+    readonly_fields = ['user']
+    list_display = ['title', 'status']
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(SupplierSubmission)
+class SubmissionAdmin(AuditedAdmin):
+    fields = ['supplier', 'filename', 'rows', 'status', 'review_note']
+    readonly_fields = ['supplier', 'filename', 'rows']
+    list_display = ['filename', 'supplier', 'status', 'created_at']
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(SupplyRequest)
+class SupplyRequestAdmin(AuditedAdmin):
+    fields = ['user', 'product', 'quantity', 'status', 'review_note']
+    readonly_fields = ['user', 'product', 'quantity']
+    list_display = ['product', 'quantity', 'status', 'created_at']
+
+    def has_add_permission(self, request):
+        return False
+
+
+class SeniorOnly:
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    has_add_permission = has_view_permission
+    has_change_permission = has_view_permission
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+admin.site.unregister(get_user_model())
+admin.site.unregister(Group)
+admin.site.register(get_user_model(), type('SeniorUserAdmin', (SeniorOnly, UserAdmin), {}))
+admin.site.register(Group, type('SeniorGroupAdmin', (SeniorOnly, GroupAdmin), {}))
 
 
 class LegalAdmin(AuditedAdmin):
@@ -211,6 +272,7 @@ class OfferAdmin(AuditedAdmin):
 
     def save_model(self, request, obj, form, change):
         with transaction.atomic():
+            Product.objects.select_for_update().get(pk=obj.product_id)
             old = Offer.objects.select_for_update().get(pk=obj.pk) if change else None
             if not manages_marketplace(request.user):
                 if not obj.vendor.active or not obj.vendor.members.filter(pk=request.user.pk).exists():

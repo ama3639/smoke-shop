@@ -5,9 +5,11 @@ import "@fontsource/vazirmatn/600.css";
 import "@fontsource/vazirmatn/700.css";
 import "./globals.css";
 import { Footer, Header } from "@/components/chrome";
+import { siteUrl } from "@/lib/seo";
 import AgeGate from "@/components/age-gate";
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl() ?? null,
   title: {
     default: "اسموک‌شاپ | کاتالوگ سیگار، ویپ، پیپ و اکسسوری",
     template: "%s | اسموک‌شاپ",

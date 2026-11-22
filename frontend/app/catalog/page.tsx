@@ -1,8 +1,13 @@
+import { pageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import Storefront from "@/components/storefront";
 import { CatalogParams, readCatalog } from "@/lib/catalog-data";
 
-export const metadata: Metadata = { title: "کاتالوگ همه کالاها و اکسسوری" };
+export async function generateMetadata({ searchParams }: { searchParams: Promise<CatalogParams> }): Promise<Metadata> {
+  const params = await searchParams;
+  return { ...pageMetadata("کاتالوگ همه کالاها و اکسسوری", "مشخصات، برند و عرضه‌های ثبت‌شدهٔ کاتالوگ.", "/catalog"),
+    ...(Object.keys(params).length ? { robots: { index: false, follow: true } } : {}) };
+}
 export const dynamic = "force-dynamic";
 
 export default async function CatalogPage({

@@ -46,3 +46,16 @@ GET /api/v1/catalog/products/?type=tobacco&brand=...&category=...&flavor=...&wei
 ورود نشست را می‌چرخاند و Cart ID، ردیف‌های Offer و رزروهای مهمان را حفظ می‌کند؛ کاربر قبلی/حساب دیگر قابل تصاحب نیست. Logout دسترسی نشست مهمان به سفارش متصل به حساب را قطع می‌کند. GET orders/:id/ برای درخواست متعلق به حساب نیاز به ورود همان حساب دارد و غیرمالک404 می‌گیرد. رمز، نقش‌ها و کاربران دیگر در پاسخ نیستند. API قیمت/موجودی/رزرو و سیاست دخانیات قبلی حفظ‌اند.
 
 GET cart/ برای مهمان بدون کوکی نشست پاسخ سبد خالی/flag جاری می‌دهد و نشست/Cart نمی‌سازد؛ mutation یا نشست موجود مسیرقبلی را دارد. این رفتار از Set-Cookie موازی در شمارنده هدر و تأییدسن جلوگیری می‌کند و shape پاسخ تغییر نمی‌کند.
+
+## افزوده‌های 0.12.0
+
+- GET /api/v1/site/: فقط display_name/support_phone/support_email؛ نرخ و تنظیمات خصوصی در پاسخ نیست.
+- GET/POST /api/v1/supplier/: حساب فعال واردشده؛ POST action=apply با title/phone درخواست را PENDING می‌کند؛ action=submit به صورت multipart با file فقط پس از APPROVED. GET فقط پروفایل و آخرین ۳۰ فایل همان حساب؛ ?download=ID فقط مالک یا staff با view_suppliersubmission و با attachment/no-store/nosniff. فایل زیر MEDIA_URL نیست.
+- CSV/XLSX خصوصی تأمین‌کننده: product_sku,purchase_price,stock؛ قیمت خرید از عرضهٔ موجود جدا است. PDF فقط مرجع، بدون استخراج خودکار. فایل۱MB و جدول۵۰۰ ردیف؛ ۱۰ لیست معلق برای هر حساب.
+- /operations/ بخش‌های settings/suppliers/submissions/supply با مجوزهای Django همان مدل و فرم signed/stale موجود. settings فقط رکورد۱؛ ایجاد پروفایل/لیست/درخواست از فرم مدیریتی عمومی ممنوع است.
+- GET /operations/?access=1 و POST save_role/save_access فقط superuser؛ مجوز نقش فقط از app_label=shop، تخصیص به غیر-superuser و با token حساب/نسخه؛ دادهٔ قدیمی409. مجوز مستقیم قبلی حذف نمی‌شود. فهرست کاربران این رابط محدود به۲۰۰ است.
+- POST multipart /operations/ با action=preview و file از CSV/XLSX قالب عرضهٔ موجود پشتیبانی می‌کند؛ ستون‌های فعلی/توکن confirm حفظ‌اند، PDF در این مسیر پذیرفته نیست.
+- POST /api/v1/supply-requests/ با product_id صحیح و quantity۱..۲۰، فقط حساب فعال و کالای غیردخانی مجاز با موجودی عمومی صفر؛ پاسخ payment_required=false. نه Order می‌سازد و نه موجودی را رزرو می‌کند؛ هر حساب/کالا فقط یک درخواست PENDING دارد. /account/ کلید supply_requests را فقط برای همان مالک برمی‌گرداند.
+- Product.wholesale_min_quantity اختیاری/nullable و مشخصاتی است؛ قرارداد قدیمی price/stock تغییر نکرده است. همهٔ POSTها CSRF دارند.
+
+فیلد supply_requestable از سیاست واقعی سرور و موجودی عمومی محاسبه می‌شود و به قیمت قطعی وابسته نیست؛ purchasable همچنان قیمت معتبر می‌خواهد. رابط از این فیلد برای درخواست تأمین کالای مجاز ناموجود با قیمت نامشخص استفاده می‌کند.

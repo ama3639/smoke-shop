@@ -1,7 +1,13 @@
 from django.urls import path
 from . import views
+from .operations import operations
+from .suppliers import supplier
 
 urlpatterns = [
+    path('supply-requests/', views.supply_request),
+    path('site/', views.site_settings),
+    path('supplier/', supplier),
+    path('operations/', operations),
     path('account/', views.account),
     path('vendors/', views.vendors),
     path('health/', views.health), path('session/', views.session), path('catalog/', views.catalog), path('branches/', views.branches),
